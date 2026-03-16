@@ -1,0 +1,20 @@
+{
+  "name": "gameboxd",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "lib",
+    "mobile",
+    "web"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=web",
+    "dev:mobile": "npm run start --workspace=mobile",
+    "build:lib": "npm run build --workspace=lib",
+    "build:web": "npm run build --workspace=web",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

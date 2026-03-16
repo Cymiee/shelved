@@ -1,0 +1,47 @@
+import { useEffect } from "react";
+import { Stack } from "expo-router";
+import { supabase } from "../lib/supabase";
+import { useAuthStore } from "../store/auth";
+import { getProfile } from "@gameboxd/lib";
+
+export default function RootLayout() {
+  const { setUserId, setProfile } = useAuthStore();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const user = data.session?.user ?? null;
+      setUserId(user?.id ?? null);
+      if (user) {
+        getProfile(supabase, user.id)
+          .then(setProfile)
+          .catch(() => setProfile(null));
+      }
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const user = session?.user ?? null;
+        setUserId(user?.id ?? null);
+        if (user) {
+          try {
+            const profile = await getProfile(supabase, user.id);
+            setProfile(profile);
+          } catch {
+            setProfile(null);
+          }
+        } else {
+          setProfile(null);
+        }
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
+  }, [setUserId, setProfile]);
+
+  return (
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="auth" options={{ headerShown: false }} />
+    </Stack>
+  );
+}

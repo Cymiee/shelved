@@ -7,8 +7,10 @@ interface AuthStore {
   profile: UserRow | null;
   userId: string | null;
   loading: boolean;
+  initialized: boolean;
   setProfile: (profile: UserRow | null) => void;
   setUserId: (id: string | null) => void;
+  setInitialized: () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, username: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -18,6 +20,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   profile: null,
   userId: null,
   loading: false,
+  initialized: false,
+  setInitialized: () => set({ initialized: true }),
   setProfile: (profile) => set({ profile }),
   setUserId: (userId) => set({ userId }),
   login: async (email, password) => {

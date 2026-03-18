@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import { useAuthStore } from "./store/auth";
 import { getProfile } from "@gameboxd/lib";
+import Spinner from "./components/Spinner";
 
 import Layout from "./components/Layout";
 import AuthPage from "./pages/AuthPage";
@@ -15,7 +16,7 @@ import GamesPage from "./pages/GamesPage";
 import SettingsPage from "./pages/SettingsPage";
 
 export default function App() {
-  const { userId, setUserId, setProfile } = useAuthStore();
+  const { userId, initialized, setUserId, setProfile, setInitialized } = useAuthStore();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -24,7 +25,10 @@ export default function App() {
       if (user) {
         getProfile(supabase, user.id)
           .then(setProfile)
-          .catch(() => setProfile(null));
+          .catch(() => setProfile(null))
+          .finally(setInitialized);
+      } else {
+        setInitialized();
       }
     });
 
@@ -47,6 +51,14 @@ export default function App() {
 
     return () => listener.subscription.unsubscribe();
   }, [setUserId, setProfile]);
+
+  if (!initialized) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+        <Spinner size={44} />
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>

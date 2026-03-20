@@ -399,24 +399,46 @@ export default function GamePage() {
               </button>
 
               {saveError && <p style={{ color: "#f55", fontSize: "0.8rem", margin: 0 }}>{saveError}</p>}
-              {saveSuccess && <p style={{ color: "#5c5", fontSize: "0.8rem", margin: 0 }}>Saved!</p>}
 
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || saveSuccess}
                 style={{
                   padding: "0.6rem",
-                  background: "var(--accent)",
+                  background: saveSuccess ? "#2d7a3a" : "var(--accent)",
                   border: "none",
                   color: "#fff",
                   borderRadius: 6,
-                  cursor: saving ? "not-allowed" : "pointer",
+                  cursor: (saving || saveSuccess) ? "default" : "pointer",
                   fontWeight: 600,
                   fontSize: "0.9rem",
-                  opacity: saving ? 0.7 : 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.45rem",
+                  transition: "background 0.25s",
                 }}
               >
-                {saving ? "Saving..." : existingLog ? "Update Log" : "Save Log"}
+                {saving ? (
+                  <>
+                    <span
+                      style={{
+                        width: 13,
+                        height: 13,
+                        border: "2px solid rgba(255,255,255,0.35)",
+                        borderTopColor: "#fff",
+                        borderRadius: "50%",
+                        animation: "spin 0.65s linear infinite",
+                        flexShrink: 0,
+                      }}
+                    />
+                    Saving...
+                  </>
+                ) : saveSuccess ? (
+                  <>&#10003; Saved</>
+                ) : (
+                  existingLog ? "Update Log" : "Save Log"
+                )}
               </button>
             </div>
           )}

@@ -30,21 +30,18 @@ function HScrollRow({ games, loading, onQuickLog }: {
   return (
     <div
       style={{
-        display: "flex",
+        display: "grid",
+        gridTemplateColumns: `repeat(${games.length}, minmax(0, 1fr))`,
         gap: "0.75rem",
-        overflowX: "auto",
-        paddingBottom: "0.5rem",
-        scrollbarWidth: "none",
       }}
     >
       {games.map((g) => (
-        <div key={g.id} style={{ flex: "0 0 140px" }}>
-          <GameCard
-            game={g}
-            onSelect={(game) => navigate(`/game/${game.id}`)}
-            {...(onQuickLog ? { onQuickLog } : {})}
-          />
-        </div>
+        <GameCard
+          key={g.id}
+          game={g}
+          onSelect={(game) => navigate(`/game/${game.id}`)}
+          {...(onQuickLog ? { onQuickLog } : {})}
+        />
       ))}
     </div>
   );

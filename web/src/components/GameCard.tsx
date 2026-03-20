@@ -15,20 +15,22 @@ export default function GameCard({ game, onSelect, onQuickLog }: Props) {
     : null;
 
   return (
-    <div style={{ cursor: onSelect ? "pointer" : "default" }}>
+    <div style={{ cursor: onSelect ? "pointer" : "default", width: "100%" }}>
+      {/* paddingBottom: 150% forces 2:3 portrait ratio regardless of image dimensions */}
       <div
-        onClick={() => onSelect?.(game)}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
         style={{
           position: "relative",
-          aspectRatio: "2/3",
+          width: "100%",
+          paddingBottom: "150%",
           borderRadius: 8,
           overflow: "hidden",
           background: "var(--surface)",
           transform: hovered ? "scale(1.03)" : "scale(1)",
           transition: "transform 0.18s ease",
         }}
+        onClick={() => onSelect?.(game)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
         {game.cover ? (
           <img
@@ -46,8 +48,8 @@ export default function GameCard({ game, onSelect, onQuickLog }: Props) {
         ) : (
           <div
             style={{
-              width: "100%",
-              height: "100%",
+              position: "absolute",
+              inset: 0,
               background: "var(--border)",
               display: "flex",
               alignItems: "center",

@@ -70,6 +70,7 @@ export interface IGDBGame {
   rating_count: number | null;
   similar_games?: number[];
   hypes?: number;
+  total_rating?: number;
 }
 
 export interface IGDBCover {

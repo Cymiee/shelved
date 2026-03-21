@@ -5,8 +5,10 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 const PROXY_URL = `${SUPABASE_URL}/functions/v1/igdb-proxy`;
 
+export type SortMode = "trending" | "top_rated" | "new_releases" | "az";
+
 const GAME_FIELDS =
-  "fields id,name,summary,first_release_date,rating,rating_count,hypes,similar_games," +
+  "fields id,name,summary,first_release_date,rating,rating_count,total_rating,hypes,similar_games," +
   "cover.id,cover.image_id,cover.url,genres.id,genres.name,platforms.id,platforms.name," +
   "involved_companies.company.id,involved_companies.company.name,involved_companies.developer;";
 
@@ -75,5 +77,49 @@ export async function getGamesByFilter(
   if (genreIds.length > 0) conditions.push(`genres = (${genreIds.join(",")}) `);
   if (themeIds.length > 0) conditions.push(`themes = (${themeIds.join(",")}) `);
   const body = `${GAME_FIELDS} where ${conditions.join("& ")}; sort rating_count desc; limit 30;`;
+  return callProxy("/games", body);
+}
+
+export async function getBrowseGames({
+  genreId,
+  themeId,
+  query,
+  sort = "trending",
+  limit = 40,
+}: {
+  genreId?: number;
+  themeId?: number;
+  query?: string;
+  sort?: SortMode;
+  limit?: number;
+}): Promise<IGDBGame[]> {
+  const conditions: string[] = [];
+  if (query) {
+    const escaped = query.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    conditions.push(`name ~ *"${escaped}"*`);
+  }
+  if (genreId !== undefined) conditions.push(`genres = ${genreId}`);
+  if (themeId !== undefined) conditions.push(`themes = ${themeId}`);
+
+  let sortClause: string;
+  switch (sort) {
+    case "top_rated":
+      conditions.push("total_rating != null");
+      conditions.push("rating_count > 20");
+      sortClause = "sort total_rating desc";
+      break;
+    case "new_releases":
+      sortClause = "sort first_release_date desc";
+      break;
+    case "az":
+      sortClause = "sort name asc";
+      break;
+    default:
+      conditions.push("rating_count > 10");
+      sortClause = "sort hypes desc";
+  }
+
+  const whereClause = conditions.length > 0 ? `where ${conditions.join(" & ")}; ` : "";
+  const body = `${GAME_FIELDS} ${whereClause}${sortClause}; limit ${limit};`;
   return callProxy("/games", body);
 }

@@ -72,19 +72,24 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
-        <Route
-          element={userId ? <Layout /> : <Navigate to="/auth" replace />}
-        >
+
+        {/* Public — rendered with Navbar for everyone */}
+        <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/feed" element={<FeedPage />} />
           <Route path="/games" element={<GamesPage />} />
-          <Route path="/search" element={<SearchPage />} />
           <Route path="/game/:id" element={<GamePage />} />
           <Route path="/profile/:userId" element={<ProfilePage />} />
+          <Route path="/search" element={<SearchPage />} />
+        </Route>
+
+        {/* Protected — redirect to /auth if not logged in */}
+        <Route element={userId ? <Layout /> : <Navigate to="/auth" replace />}>
+          <Route path="/feed" element={<FeedPage />} />
           <Route path="/friends" element={<FriendsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/want-to-play" element={<WantToPlayPage />} />
         </Route>
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

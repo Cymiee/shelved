@@ -281,24 +281,28 @@ export default function GamePage() {
               )}
 
               <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
-                {userId && (
-                  <button
-                    onClick={() => setShowLogModal(true)}
-                    style={{
-                      padding: "0.6rem 1.5rem",
-                      background: "var(--accent)",
-                      border: "none",
-                      color: "#0e0e10",
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      fontWeight: 700,
-                      fontSize: "0.9rem",
-                      fontFamily: "Syne, sans-serif",
-                    }}
-                  >
-                    {existingLog && existingLog.status !== "want_to_play" ? "Edit log" : "Log this game"}
-                  </button>
-                )}
+                <button
+                  onClick={() => {
+                    if (userId) {
+                      setShowLogModal(true);
+                    } else {
+                      navigate(`/auth?from=/game/${id}`);
+                    }
+                  }}
+                  style={{
+                    padding: "0.6rem 1.5rem",
+                    background: "var(--accent)",
+                    border: "none",
+                    color: "#0e0e10",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: "0.9rem",
+                    fontFamily: "Syne, sans-serif",
+                  }}
+                >
+                  {existingLog && existingLog.status !== "want_to_play" ? "Edit log" : "Log this game"}
+                </button>
 
                 {userId && (!existingLog || existingLog.status === "want_to_play") && (
                   <button

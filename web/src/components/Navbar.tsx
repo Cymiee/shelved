@@ -129,6 +129,53 @@ export default function Navbar() {
         <NavLink to="/games" style={navLinkStyle}>Games</NavLink>
         <NavLink to="/feed" style={navLinkStyle}>Feed</NavLink>
 
+        {/* Auth buttons (logged out) */}
+        {!profile && (
+          <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
+            <Link
+              to="/auth"
+              style={{
+                padding: "0.4rem 0.9rem",
+                background: "transparent",
+                border: "1px solid #27272a",
+                color: "#71717a",
+                borderRadius: 8,
+                fontSize: "0.875rem",
+                textDecoration: "none",
+                transition: "border-color 0.15s, color 0.15s",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#3f3f46";
+                e.currentTarget.style.color = "#fafafa";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#27272a";
+                e.currentTarget.style.color = "#71717a";
+              }}
+            >
+              Log in
+            </Link>
+            <Link
+              to="/auth?mode=signup"
+              style={{
+                padding: "0.4rem 0.9rem",
+                background: "#e4ff1a",
+                border: "none",
+                color: "#0e0e10",
+                borderRadius: 8,
+                fontSize: "0.875rem",
+                fontWeight: 700,
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+                fontFamily: "Syne, sans-serif",
+              }}
+            >
+              Sign up
+            </Link>
+          </div>
+        )}
+
         {/* User dropdown */}
         {profile && (
           <div

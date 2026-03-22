@@ -29,6 +29,29 @@ export {
   getPopularAmongFriends,
 } from "./supabase/friends.js";
 
+// Activity helpers
+export {
+  getActivityWithUsers,
+  getFriendsActivity,
+  getUserActivity,
+  getTrendingGameIds,
+  getMostPlayedThisWeek,
+  getRecentReviews,
+  getUserStats,
+  getPopularLists,
+} from "./supabase/activity.js";
+export type { ActivityWithUser, TrendingGameEntry, ReviewWithUser } from "./supabase/activity.js";
+
+// Lists helpers
+export {
+  getPopularListsWithMeta,
+  getListWithGames,
+  createList,
+  addGameToList,
+  removeGameFromList,
+} from "./supabase/lists.js";
+export type { ListWithMeta, ListWithGames } from "./supabase/lists.js";
+
 // IGDB
 export { createIGDBClient, getCoverUrl } from "./igdb/client.js";
 export type { CoverSize } from "./igdb/client.js";

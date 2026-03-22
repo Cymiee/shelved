@@ -49,6 +49,24 @@ export interface ActivityRow {
   created_at: string;
 }
 
+export interface ListRow {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  likes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListGameRow {
+  id: string;
+  list_id: string;
+  game_igdb_id: number;
+  position: number;
+  created_at: string;
+}
+
 // ── IGDB types ──────────────────────────────────────────────────────────────
 
 export interface IGDBInvolvedCompany {

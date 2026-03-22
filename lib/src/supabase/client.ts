@@ -122,6 +122,53 @@ export interface Database {
         };
         Relationships: [];
       };
+      lists: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          description: string | null;
+          likes: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          description?: string | null;
+          likes?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          description?: string | null;
+          likes?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      list_games: {
+        Row: {
+          id: string;
+          list_id: string;
+          game_igdb_id: number;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          list_id: string;
+          game_igdb_id: number;
+          position: number;
+          created_at?: string;
+        };
+        Update: {
+          position?: number;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

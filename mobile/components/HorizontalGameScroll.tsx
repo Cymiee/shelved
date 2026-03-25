@@ -10,7 +10,7 @@ interface Props {
   onPress: (game: IGDBGame) => void;
 }
 
-export default function HorizontalGameScroll({ games, loading, cardWidth = 72, onPress }: Props) {
+export default function HorizontalGameScroll({ games, loading, cardWidth = 110, onPress }: Props) {
   if (loading) {
     return (
       <View style={styles.loadingRow}>

@@ -22,7 +22,10 @@ export default function ActivityItem({ item, gameCover, gameName }: Props) {
     if (item.type === 'rated' && rating != null) return `rated ${gameName ?? 'a game'}`;
     if (item.type === 'reviewed') return `reviewed ${gameName ?? 'a game'}`;
     if (item.type === 'topped') return `added ${gameName ?? 'a game'} to favourites`;
-    if (status) return `marked ${gameName ?? 'a game'} as ${status.replace('_', ' ')}`;
+    if (status) {
+      const readable = status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+      return `marked ${gameName ?? 'a game'} as ${readable}`;
+    }
     return `logged ${gameName ?? 'a game'}`;
   }
 

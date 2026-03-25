@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0f0f0f"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.gameboxd.app"
@@ -24,9 +26,9 @@
       },
       "package": "com.gameboxd.app"
     },
-    "plugins": ["expo-router"],
-    "experiments": {
-      "typedRoutes": true
-    }
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ]
   }
 }

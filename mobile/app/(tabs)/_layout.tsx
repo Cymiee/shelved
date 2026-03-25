@@ -1,55 +1,92 @@
 import { Tabs } from 'expo-router';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Colors } from '../../constants/colors';
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-function tabIcon(name: IoniconsName, activeName: IoniconsName) {
-  return ({ color, focused }: { color: string; focused: boolean }) => (
-    <Ionicons name={focused ? activeName : name} size={20} color={color} />
+const TAB_CONFIG: Record<string, { label: string; icon: IconName; activeIcon: IconName }> = {
+  index:    { label: 'Home',     icon: 'home-outline',    activeIcon: 'home' },
+  explore:  { label: 'Search',   icon: 'search-outline',  activeIcon: 'search' },
+  discover: { label: 'Discover', icon: 'compass-outline', activeIcon: 'compass' },
+  shelf:    { label: 'My Shelf', icon: 'layers-outline',  activeIcon: 'layers' },
+  profile:  { label: 'Profile',  icon: 'person-outline',  activeIcon: 'person' },
+};
+
+function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+
+  const visibleRoutes = state.routes.filter((r) => TAB_CONFIG[r.name]);
+
+  function renderTab(route: typeof state.routes[0]) {
+    const cfg = TAB_CONFIG[route.name];
+    if (!cfg) return null;
+    const focused = state.routes[state.index]?.name === route.name;
+    const color = focused ? Colors.accent : '#555555';
+
+    return (
+      <Pressable
+        key={route.key}
+        style={s.tab}
+        onPress={() => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!focused && !event.defaultPrevented) {
+            navigation.navigate(route.name, {});
+          }
+        }}
+      >
+        <Ionicons name={focused ? cfg.activeIcon : cfg.icon} size={22} color={color} />
+        <Text style={[s.label, { color }]}>{cfg.label}</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={[s.bar, { paddingBottom: insets.bottom }]}>
+      {visibleRoutes.map(renderTab)}
+    </View>
   );
 }
+
+const s = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    backgroundColor: '#111111',
+    borderTopWidth: 0.5,
+    borderTopColor: '#1e1e1e',
+    height: 64,
+    alignItems: 'center',
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    height: '100%',
+  },
+  label: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 10,
+  },
+});
 
 export default function TabsLayout() {
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: Colors.accent,
-        tabBarInactiveTintColor: '#555555',
-        tabBarStyle: {
-          backgroundColor: '#111111',
-          borderTopWidth: 0.5,
-          borderTopColor: '#1e1e1e',
-          height: 56,
-        },
-        tabBarLabelStyle: {
-          fontFamily: 'Inter_400Regular',
-          fontSize: 10,
-          marginBottom: 4,
-        },
-      }}
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <CustomTabBar {...props} />}
     >
-      <Tabs.Screen
-        name="index"
-        options={{ title: 'Home', tabBarIcon: tabIcon('home-outline', 'home') }}
-      />
-      <Tabs.Screen
-        name="shelf"
-        options={{ title: 'My Shelf', tabBarIcon: tabIcon('layers-outline', 'layers') }}
-      />
-      <Tabs.Screen
-        name="discover"
-        options={{ title: 'Discover', tabBarIcon: tabIcon('compass-outline', 'compass') }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{ title: 'Search', tabBarIcon: tabIcon('search-outline', 'search') }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{ title: 'Profile', tabBarIcon: tabIcon('person-outline', 'person') }}
-      />
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="explore" />
+      <Tabs.Screen name="discover" />
+      <Tabs.Screen name="shelf" />
+      <Tabs.Screen name="profile" />
     </Tabs>
   );
 }

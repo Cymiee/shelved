@@ -39,7 +39,14 @@ export default function ProfileScreen() {
       ]);
       setTopGames(top);
       setStats(userStats);
-      setActivity(acts);
+      const seen = new Set<string>();
+      const dedupedActs = acts.filter((a) => {
+        const key = `${a.game_igdb_id}:${a.type}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setActivity(dedupedActs);
 
       const topIds = top.map((t) => t.game_igdb_id);
       const actIds = [...new Set(acts.map((a) => a.game_igdb_id))];

@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, Pressable, Image,
-  FlatList, KeyboardAvoidingView, Platform, StyleSheet, ActivityIndicator,
+  KeyboardAvoidingView, Platform, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import type { IGDBGame, GameStatus } from '@gameboxd/lib';
@@ -123,12 +123,7 @@ export default function LogModal() {
               {searching ? (
                 <ActivityIndicator color={Colors.accent} style={{ marginTop: 24 }} />
               ) : (
-                <FlatList
-                  data={results}
-                  keyExtractor={(g) => String(g.id)}
-                  renderItem={({ item }) => <SearchRow game={item} onPress={selectGame} />}
-                  keyboardShouldPersistTaps="handled"
-                />
+                results.map((g) => <SearchRow key={g.id} game={g} onPress={selectGame} />)
               )}
             </View>
           )}

@@ -37,7 +37,14 @@ export default function ShelfScreen() {
         getUserActivity(supabase, userId, 20),
       ]);
       setLogs(userLogs);
-      setActivity(acts);
+      const seen = new Set<string>();
+      const dedupedActs = acts.filter((a) => {
+        const key = `${a.game_igdb_id}:${a.type}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setActivity(dedupedActs);
       const ids = [...new Set(userLogs.map((l) => l.game_igdb_id))];
       if (ids.length > 0) {
         const games = await getGames(ids);
@@ -152,8 +159,8 @@ const styles = StyleSheet.create({
   },
   statusLabel: { fontFamily: 'Inter_500Medium', fontSize: 13, color: Colors.textSecondary },
   statusCount: { fontFamily: 'Inter_400Regular', fontSize: 13, color: Colors.textMuted },
-  miniRow: { gap: 6, paddingHorizontal: 16, paddingBottom: 12 },
-  miniCover: { width: 36, height: 48, borderRadius: 6, borderWidth: 0.5, borderColor: Colors.border },
+  miniRow: { gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
+  miniCover: { width: 80, height: 107, borderRadius: 6, borderWidth: 0.5, borderColor: Colors.border },
   divider: { height: 0.5, backgroundColor: Colors.surfaceElevated },
   activitySection: { marginTop: 16, marginBottom: 32 },
   sectionLabel: {

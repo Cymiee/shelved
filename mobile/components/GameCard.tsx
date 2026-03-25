@@ -9,7 +9,7 @@ interface GameCardProps {
   onPress: (game: IGDBGame) => void;
 }
 
-export default function GameCard({ game, width = 72, onPress }: GameCardProps) {
+export default function GameCard({ game, width = 110, onPress }: GameCardProps) {
   const height = Math.round(width * 1.5);
   const coverUrl = game.cover ? getCoverUrl(game.cover.image_id, 'cover_big') : null;
 
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   },
   rating: {
     fontFamily: 'Inter_500Medium',
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.accent,
     marginTop: 1,
   },

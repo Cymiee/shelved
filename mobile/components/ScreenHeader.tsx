@@ -1,10 +1,10 @@
 import { View, Text, Pressable, StyleSheet, ToastAndroid, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
-import { useLogModal } from '../store/logModal';
 
 export default function ScreenHeader() {
-  const { open } = useLogModal();
+  const insets = useSafeAreaInsets();
 
   function showComingSoon() {
     if (Platform.OS === 'android') {
@@ -15,11 +15,7 @@ export default function ScreenHeader() {
   }
 
   return (
-    <View style={styles.header}>
-      <Pressable onPress={() => open()} hitSlop={8} style={styles.iconButton}>
-        <Ionicons name="add" size={24} color={Colors.textSecondary} />
-      </Pressable>
-
+    <View style={[styles.header, { paddingTop: insets.top }]}>
       <Text style={styles.wordmark}>Shelved</Text>
 
       <Pressable onPress={showComingSoon} style={styles.bellButton}>
@@ -38,16 +34,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: Colors.background,
   },
-  iconButton: { padding: 2 },
   wordmark: {
     fontFamily: 'Syne_700Bold',
-    fontSize: 18,
+    fontSize: 22,
     color: Colors.accent,
   },
   bellButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: Colors.surfaceElevated,
     borderWidth: 0.5,
     borderColor: Colors.border,

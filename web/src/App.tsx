@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { useAuthStore } from "./store/auth";
 import { useNotificationsStore } from "./store/notifications";
@@ -57,47 +58,50 @@ export default function App() {
   const clearNotifications = useNotificationsStore((s) => s.clear);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const user = data.session?.user ?? null;
-      setUserId(user?.id ?? null);
-      if (user) {
-        const username = (user.user_metadata?.username as string | undefined)
-          ?? user.email?.split("@")[0]
-          ?? "user";
-        ensureProfile(supabase, user.id, username)
-          .then(setProfile)
-          .catch(() => setProfile(null))
-          .finally(setInitialized);
-        getProfileTags(supabase, user.id).then(setProfileTags).catch(() => setProfileTags(null));
-        void refreshNotifications(user.id);
-      } else {
+    // Which user the profile/tags/notifications were last loaded for. Token
+    // refreshes re-fire the listener for the same user; reloading everything
+    // then is wasted work and a flash of stale UI.
+    let loadedFor: string | null = null;
+
+    async function loadUserData(user: User) {
+      const username = (user.user_metadata?.username as string | undefined)
+        ?? user.email?.split("@")[0]
+        ?? "user";
+      try {
+        setProfile(await ensureProfile(supabase, user.id, username));
+      } catch {
+        setProfile(null);
+      } finally {
         setInitialized();
       }
-    });
+      getProfileTags(supabase, user.id).then(setProfileTags).catch(() => setProfileTags(null));
+      void refreshNotifications(user.id);
+    }
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        const user = session?.user ?? null;
-        setUserId(user?.id ?? null);
-        if (user) {
-          try {
-            const username = (user.user_metadata?.username as string | undefined)
-              ?? user.email?.split("@")[0]
-              ?? "user";
-            const profile = await ensureProfile(supabase, user.id, username);
-            setProfile(profile);
-          } catch {
-            setProfile(null);
-          }
-          getProfileTags(supabase, user.id).then(setProfileTags).catch(() => setProfileTags(null));
-          void refreshNotifications(user.id);
-        } else {
-          setProfile(null);
-          setProfileTags(null);
-          clearNotifications();
-        }
+    // One subscription handles startup (INITIAL_SESSION) and every later
+    // change, so nothing is fetched twice on load.
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      const user = session?.user ?? null;
+      setUserId(user?.id ?? null);
+
+      if (!user) {
+        loadedFor = null;
+        setProfile(null);
+        setProfileTags(null);
+        clearNotifications();
+        setInitialized();
+        return;
       }
-    );
+
+      if (event === "TOKEN_REFRESHED" && loadedFor === user.id) return;
+      loadedFor = user.id;
+
+      // Never await Supabase calls inside this callback: it runs while the
+      // auth client holds its session lock, and a query that waits on that
+      // same lock deadlocks every later request until a full reload. Deferring
+      // to the next tick lets the callback return and release the lock first.
+      setTimeout(() => { void loadUserData(user); }, 0);
+    });
 
     return () => listener.subscription.unsubscribe();
   }, [setUserId, setProfile, setProfileTags, setInitialized, refreshNotifications, clearNotifications]);

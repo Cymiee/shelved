@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { PageSpinner } from "../components/Spinner";
-import type { IGDBGame, GameLogRow, GameStatus, FriendRating } from "@gameboxd/lib";
-import { getCoverUrl, getUserGameLogs, deleteGameLog, getFriendRatingsForGame } from "@gameboxd/lib";
+import type { IGDBGame, GameLogRow, GameStatus, FriendRating, ReviewWithUser } from "@gameboxd/lib";
+import { getCoverUrl, getUserGameLogs, deleteGameLog, getFriendRatingsForGame, getGameReviews } from "@gameboxd/lib";
 import GameCover from "../components/GameCover";
 import Avatar from "../components/Avatar";
 import StatusChip from "../components/StatusChip";
@@ -16,6 +16,7 @@ import LogGameModal from "../components/LogGameModal";
 import AddToListModal from "../components/AddToListModal";
 import FavouriteModal from "../components/FavouriteModal";
 import GameCard from "../components/GameCard";
+import ReviewCard from "../components/ReviewCard";
 import { StarIcon } from "../components/icons";
 import { useIsMobile } from "../hooks/useIsMobile";
 
@@ -41,6 +42,7 @@ export default function GamePage() {
 
   const [friendRatings, setFriendRatings] = useState<FriendRating[]>([]);
   const [similarGames, setSimilarGames] = useState<IGDBGame[]>([]);
+  const [reviews, setReviews] = useState<ReviewWithUser[]>([]);
 
   // Load favourites so the button can reflect whether this game is pinned.
   useEffect(() => { if (userId) void fetchTopGames(); }, [userId, fetchTopGames]);
@@ -63,16 +65,21 @@ export default function GamePage() {
     setShowAddToList(false);
     setFriendRatings([]);
     setSimilarGames([]);
+    setReviews([]);
 
     async function load() {
       setError(null);
       try {
-        const [g, logs] = await Promise.all([
+        // Reviews are public and non-critical: a failure there must not
+        // block the page, so it resolves to an empty list instead of throwing.
+        const [g, logs, gameReviews] = await Promise.all([
           getGame(Number(id)),
           userId ? getUserGameLogs(supabase, userId) : Promise.resolve<GameLogRow[]>([]),
+          getGameReviews(supabase, Number(id)).catch((): ReviewWithUser[] => []),
         ]);
         if (cancelled) return;
         setGame(g);
+        setReviews(gameReviews);
         const log = logs.find((l) => l.game_igdb_id === Number(id)) ?? null;
         if (log) {
           setExistingLog(log);
@@ -128,6 +135,14 @@ export default function GamePage() {
     const log = await logGame(game.id, status, rating, review, (game.genres ?? []).map((g) => g.id), playtimeMin);
     setExistingLog(log);
     setWantToPlay(false);
+
+    // The user's own review (new, edited or removed) should show up in the
+    // community block immediately rather than on the next visit.
+    try {
+      setReviews(await getGameReviews(supabase, game.id));
+    } catch {
+      // Non-critical: the log itself saved; the block just stays stale.
+    }
   };
 
   if (loading) return <PageSpinner />;
@@ -540,6 +555,84 @@ export default function GamePage() {
             </div>
           )}
         </div>
+
+        {/* ── Community reviews — what people actually said, above the
+               catalogue's "more like this". Always rendered: an empty state
+               invites the first review instead of hiding that nobody has. ── */}
+        <section style={{ marginTop: "var(--space-8)" }}>
+          <ShelfHeader
+            title="Reviews"
+            {...(reviews.length > 0 ? { count: reviews.length } : {})}
+            action={
+              userId && !existingLog?.review ? (
+                <button
+                  type="button"
+                  onClick={() => setShowLogModal(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: "var(--accent)",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "var(--font-body)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Write a review
+                </button>
+              ) : undefined
+            }
+          />
+          {reviews.length > 0 ? (
+            <div
+              className="stagger"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))",
+                gap: "var(--space-4)",
+                alignItems: "start",
+              }}
+            >
+              {reviews.map((r) => (
+                <ReviewCard key={r.id} review={r} />
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                padding: "var(--space-5)",
+                border: "1px dashed var(--border-strong)",
+                borderRadius: "var(--radius-lg)",
+                color: "var(--text-muted)",
+                fontSize: "var(--text-sm)",
+                display: "flex",
+                gap: "var(--space-3)",
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <span>No one has reviewed {game.name} yet.</span>
+              <button
+                type="button"
+                onClick={() => (userId ? setShowLogModal(true) : navigate(`/auth?from=/game/${id}`))}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "var(--accent)",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontSize: "var(--text-sm)",
+                  fontFamily: "var(--font-body)",
+                }}
+              >
+                Be the first
+              </button>
+            </div>
+          )}
+        </section>
 
         {/* Similar games */}
         {similarGames.length > 0 && (

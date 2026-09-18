@@ -10,6 +10,8 @@ export {
   signUp,
   signIn,
   signOut,
+  requestPasswordReset,
+  updatePassword,
   getProfile,
   updateProfile,
   unlinkSteam,

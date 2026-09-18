@@ -20,6 +20,7 @@ import ExplorePage from "./pages/ExplorePage";
 import ListPage from "./pages/ListPage";
 import SettingsPage from "./pages/SettingsPage";
 import WantToPlayPage from "./pages/WantToPlayPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 /** /games → /explore, preserving any ?q= search term from old links. */
 function LegacyGamesRedirect() {
@@ -119,6 +120,9 @@ export default function App() {
       <OnboardingGate />
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
+        {/* Landing page for the emailed reset link. The link itself signs the
+            user in; the page only needs to collect the new password. */}
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Full-screen onboarding wizard (protected, no navbar). Each step is its
             own route; bare /onboarding lands on the first step. */}

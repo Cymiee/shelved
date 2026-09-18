@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { UserRow, UserProfileTagsRow } from "@gameboxd/lib";
-import { signIn, signUp, signOut } from "@gameboxd/lib";
+import { signIn, signUp, signOut, requestPasswordReset, updatePassword } from "@gameboxd/lib";
 import { supabase } from "../lib/supabase";
 
 interface AuthStore {
@@ -17,6 +17,10 @@ interface AuthStore {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, username: string) => Promise<{ needsConfirmation: boolean }>;
   logout: () => Promise<void>;
+  /** Email a reset link that returns the user to /reset-password. */
+  requestPasswordReset: (email: string) => Promise<void>;
+  /** Set a new password for the currently signed-in user. */
+  updatePassword: (password: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -54,5 +58,21 @@ export const useAuthStore = create<AuthStore>((set) => ({
   logout: async () => {
     await signOut(supabase);
     set({ profile: null, profileTags: null, profileTagsLoaded: false, userId: null });
+  },
+  requestPasswordReset: async (email) => {
+    set({ loading: true });
+    try {
+      await requestPasswordReset(supabase, email, `${window.location.origin}/reset-password`);
+    } finally {
+      set({ loading: false });
+    }
+  },
+  updatePassword: async (password) => {
+    set({ loading: true });
+    try {
+      await updatePassword(supabase, password);
+    } finally {
+      set({ loading: false });
+    }
   },
 }));

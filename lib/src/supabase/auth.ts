@@ -16,6 +16,15 @@ export async function signUp(
   if (error) throw error;
   if (!data.user) throw new Error("Signup succeeded but no user returned");
 
+  // With email confirmation on, Supabase answers a signup for an address that
+  // already has an account with a fake success (no session, no email) so the
+  // endpoint can't be used to probe for accounts. The tell is an empty
+  // identities list. Surface that instead of a "check your email" that never
+  // arrives.
+  if (!data.session && (data.user.identities?.length ?? 0) === 0) {
+    throw new Error("An account with this email already exists. Sign in instead, or reset your password.");
+  }
+
   // Only insert the users row if we have a live session (email confirmation disabled).
   // When confirmation is required, session is null — we create the row on first sign-in instead.
   if (data.session) {
@@ -50,15 +59,39 @@ export async function signIn(
 
   if (!existingUser) {
     const username = (data.user.user_metadata?.username as string | undefined) ?? email.split("@")[0] ?? "user";
-    await client.from("users").insert({
+    const { error: profileError } = await client.from("users").insert({
       id: data.user.id,
       username,
       bio: null,
       avatar_url: null,
     });
+    if (profileError) throw profileError;
   }
 
   return { userId: data.user.id };
+}
+
+/**
+ * Email a password-reset link. `redirectTo` must be on the project's allowed
+ * redirect list; the link signs the user in and lands them there so they can
+ * set a new password with `updatePassword`.
+ */
+export async function requestPasswordReset(
+  client: SupabaseClient<Database>,
+  email: string,
+  redirectTo: string
+): Promise<void> {
+  const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw error;
+}
+
+/** Set a new password for the signed-in user (e.g. after a reset link). */
+export async function updatePassword(
+  client: SupabaseClient<Database>,
+  password: string
+): Promise<void> {
+  const { error } = await client.auth.updateUser({ password });
+  if (error) throw error;
 }
 
 export async function signOut(

@@ -20,7 +20,7 @@ export default function AuthPage() {
   const initialMode = searchParams.get("mode") === "signup" ? "signup" : "login";
   const fromPath = searchParams.get("from");
 
-  const [mode, setMode] = useState<"login" | "signup">(initialMode);
+  const [mode, setMode] = useState<"login" | "signup" | "reset">(initialMode);
   // Phase 1 signup is two steps: 1 = email, 2 = username + password.
   const [signupStep, setSignupStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState("");
@@ -29,22 +29,45 @@ export default function AuthPage() {
   const [username, setUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
-  const { login, register, loading } = useAuthStore();
+  const { login, register, requestPasswordReset, loading } = useAuthStore();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   function extractMessage(err: unknown): string {
-    if (err instanceof Error) return err.message;
-    if (err && typeof err === "object" && "message" in err) return String((err as { message: unknown }).message);
-    return "Something went wrong. Please try again.";
+    const raw =
+      err instanceof Error ? err.message
+      : err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message)
+      : "";
+    if (!raw) return "Something went wrong. Please try again.";
+    // Supabase's wording reads like a system error; say it the way a person would.
+    if (/invalid login credentials/i.test(raw)) return "Wrong email or password.";
+    if (/email not confirmed/i.test(raw)) return "Confirm your email first — check your inbox for the link.";
+    return raw;
   }
 
-  function switchMode(next: "login" | "signup") {
+  function switchMode(next: "login" | "signup" | "reset") {
     setMode(next);
     setError(null);
     setConfirmationSent(false);
+    setResetSent(false);
     setSignupStep(1);
+  }
+
+  async function handleResetRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Enter a valid email address");
+      return;
+    }
+    try {
+      await requestPasswordReset(email.trim());
+      setResetSent(true);
+    } catch (err) {
+      setError(extractMessage(err));
+    }
   }
 
   function handleEmailContinue(e: React.FormEvent) {
@@ -389,6 +412,80 @@ export default function AuthPage() {
                 style={{ ...submitStyle, opacity: loading ? 0.7 : 1, cursor: loading ? "not-allowed" : "pointer" }}
               >
                 {loading ? "Loading…" : "Sign in"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => switchMode("reset")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                  fontFamily: "var(--font-body)",
+                  padding: 0,
+                  alignSelf: "center",
+                }}
+              >
+                Forgot your password?
+              </button>
+            </form>
+          )}
+
+          {/* ── Reset password: email only ── */}
+          {mode === "reset" && (
+            <form
+              onSubmit={handleResetRequest}
+              style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}
+            >
+              <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 0.25rem", lineHeight: 1.5 }}>
+                Enter your email and we&apos;ll send a link to set a new password.
+              </p>
+              <input
+                className="auth-input auth-rise"
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoFocus
+                style={{ ...fieldStyle, ...riseStyle(1) }}
+              />
+
+              {error && (
+                <p style={{ color: "var(--danger)", fontSize: "0.875rem", margin: 0 }}>{error}</p>
+              )}
+
+              {resetSent ? (
+                <p style={{ color: "var(--success)", fontSize: "0.875rem", margin: 0, lineHeight: 1.5 }}>
+                  If an account exists for that email, a reset link is on its way. Check your inbox and spam folder.
+                </p>
+              ) : (
+                <button
+                  className="auth-submit auth-rise"
+                  type="submit"
+                  disabled={loading}
+                  style={{ ...submitStyle, opacity: loading ? 0.7 : 1, cursor: loading ? "not-allowed" : "pointer" }}
+                >
+                  {loading ? "Sending…" : "Send reset link"}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => switchMode("login")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                  fontFamily: "var(--font-body)",
+                  padding: 0,
+                }}
+              >
+                ← Back to sign in
               </button>
             </form>
           )}

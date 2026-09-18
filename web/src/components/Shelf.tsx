@@ -146,3 +146,50 @@ export function ShelfHeader({
     </div>
   );
 }
+
+/**
+ * Placeholder shelf shown while a row of covers loads. Same header and cover
+ * footprint as the real thing, so nothing shifts when the data lands.
+ */
+export function ShelfSkeleton({
+  title,
+  itemWidth = 150,
+  count = 7,
+}: {
+  title: string;
+  itemWidth?: number;
+  count?: number;
+}) {
+  return (
+    <section style={{ marginBottom: space[7] }} aria-busy="true" aria-label={`${title} loading`}>
+      <ShelfHeader title={title} />
+      <div className="no-scrollbar" style={{ display: "flex", gap: space[4], overflowX: "hidden" }}>
+        {Array.from({ length: count }, (_, i) => (
+          <div key={i} style={{ flex: `0 0 ${itemWidth}px`, minWidth: 0 }}>
+            <div
+              style={{
+                width: "100%",
+                aspectRatio: "3 / 4",
+                borderRadius: "var(--radius-lg)",
+                background: color.bgCard,
+                animation: "skeletonPulse 1.5s ease-in-out infinite",
+                animationDelay: `${i * 80}ms`,
+              }}
+            />
+            <div
+              style={{
+                height: 12,
+                width: "70%",
+                marginTop: space[3],
+                borderRadius: 4,
+                background: color.bgCard,
+                animation: "skeletonPulse 1.5s ease-in-out infinite",
+                animationDelay: `${i * 80}ms`,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}

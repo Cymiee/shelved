@@ -13,7 +13,7 @@ import FeaturedHero from "../components/FeaturedHero";
 import CommunityReviews from "../components/CommunityReviews";
 import LogGameModal from "../components/LogGameModal";
 import Spinner from "../components/Spinner";
-import Shelf, { ShelfHeader } from "../components/Shelf";
+import Shelf, { ShelfHeader, ShelfSkeleton } from "../components/Shelf";
 import { useGamesStore } from "../store/games";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { color, font, space } from "../theme";
@@ -29,20 +29,12 @@ function GameShelf({ title, games, loading, onQuickLog }: {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  if (loading) {
-    return (
-      <section style={{ marginBottom: space[7] }}>
-        <ShelfHeader title={title} />
-        <div style={{ height: 200, display: "flex", alignItems: "center" }}>
-          <Spinner />
-        </div>
-      </section>
-    );
-  }
+  const itemWidth = isMobile ? 128 : 168;
+  if (loading) return <ShelfSkeleton title={title} itemWidth={itemWidth} />;
   if (games.length === 0) return null;
 
   return (
-    <Shelf title={title} count={games.length} itemWidth={isMobile ? 128 : 168}>
+    <Shelf title={title} count={games.length} itemWidth={itemWidth}>
       {games.map((g) => (
         <GameCard
           key={g.id}

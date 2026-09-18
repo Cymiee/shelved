@@ -13,20 +13,81 @@ const GAME_FIELDS =
   "involved_companies.company.id,involved_companies.company.name,involved_companies.developer;";
 
 // ── Request cache ────────────────────────────────────────────────────────────
-// Without this, every SPA navigation refires the same queries — going Home →
-// Explore → Home re-fetched all three shelves. Entries live for the session
-// only; a reload starts clean.
+// Two layers, both keyed by the exact proxy request:
+//   1. memory  — instant within a session (Home → Explore → Home).
+//   2. storage — localStorage, so a reload or a return visit paints from cache
+//      too instead of waiting ~1s per shelf on the edge function.
+// Stale-while-revalidate: a fresh entry is served as-is; a stale-but-recent
+// one is served immediately while a background refresh replaces it.
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
+const FRESH_MS = 5 * 60 * 1000;
+const STALE_MAX_MS = 24 * 60 * 60 * 1000;
+const STORAGE_PREFIX = "shelved:igdb:1:";
 
 interface CacheEntry {
+  /** Full request key — verified on read so a hash collision can't serve the wrong list. */
+  k: string;
   at: number;
   games: IGDBGame[];
 }
 
-const cache = new Map<string, CacheEntry>();
+const memory = new Map<string, CacheEntry>();
 /** Identical concurrent calls share one request instead of racing. */
 const inFlight = new Map<string, Promise<IGDBGame[]>>();
+
+/** Short, stable storage key for a long request string (djb2). */
+function storageKey(key: string): string {
+  let h = 5381;
+  for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+  return STORAGE_PREFIX + (h >>> 0).toString(36);
+}
+
+function readEntry(key: string): CacheEntry | null {
+  const hit = memory.get(key);
+  if (hit) return hit;
+  try {
+    const raw = localStorage.getItem(storageKey(key));
+    if (!raw) return null;
+    const entry = JSON.parse(raw) as CacheEntry;
+    if (entry.k !== key || !Array.isArray(entry.games)) return null;
+    memory.set(key, entry);
+    return entry;
+  } catch {
+    return null;
+  }
+}
+
+function pruneStorage(): void {
+  try {
+    const now = Date.now();
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(STORAGE_PREFIX)) continue;
+      try {
+        const entry = JSON.parse(localStorage.getItem(k) ?? "") as CacheEntry;
+        if (now - entry.at > STALE_MAX_MS) localStorage.removeItem(k);
+      } catch {
+        localStorage.removeItem(k);
+      }
+    }
+  } catch {
+    // Storage unavailable — memory cache still works.
+  }
+}
+
+function writeEntry(key: string, games: IGDBGame[]): void {
+  const entry: CacheEntry = { k: key, at: Date.now(), games };
+  memory.set(key, entry);
+  try {
+    localStorage.setItem(storageKey(key), JSON.stringify(entry));
+  } catch {
+    // Most likely quota: drop expired entries and try once more; give up quietly.
+    pruneStorage();
+    try { localStorage.setItem(storageKey(key), JSON.stringify(entry)); } catch { /* ignore */ }
+  }
+}
+
+pruneStorage();
 
 // A request that never settles (edge-function cold start, dropped connection)
 // would otherwise hang forever — and because it's stored in `inFlight`, every
@@ -35,12 +96,7 @@ const inFlight = new Map<string, Promise<IGDBGame[]>>();
 // and the next attempt makes a fresh request.
 const REQUEST_TIMEOUT_MS = 15_000;
 
-async function callProxy(endpoint: string, body: string): Promise<IGDBGame[]> {
-  const key = `${endpoint}\n${body}`;
-
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.games;
-
+function fetchAndStore(key: string, endpoint: string, body: string): Promise<IGDBGame[]> {
   const pending = inFlight.get(key);
   if (pending) return pending;
 
@@ -59,7 +115,7 @@ async function callProxy(endpoint: string, body: string): Promise<IGDBGame[]> {
       });
       if (!res.ok) throw new Error(`IGDB proxy error: ${res.statusText}`);
       const games = (await res.json()) as IGDBGame[];
-      cache.set(key, { at: Date.now(), games });
+      writeEntry(key, games);
       return games;
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -68,15 +124,40 @@ async function callProxy(endpoint: string, body: string): Promise<IGDBGame[]> {
       throw err;
     } finally {
       clearTimeout(timer);
+      inFlight.delete(key);
     }
   })();
 
   inFlight.set(key, request);
-  try {
-    return await request;
-  } finally {
-    inFlight.delete(key);
+  return request;
+}
+
+async function callProxy(endpoint: string, body: string): Promise<IGDBGame[]> {
+  const key = `${endpoint}\n${body}`;
+  const entry = readEntry(key);
+  if (entry) {
+    const age = Date.now() - entry.at;
+    if (age < FRESH_MS) return entry.games;
+    if (age < STALE_MAX_MS) {
+      // Serve stale now; refresh behind the scenes for the next visit.
+      fetchAndStore(key, endpoint, body).catch(() => {});
+      return entry.games;
+    }
   }
+  return fetchAndStore(key, endpoint, body);
+}
+
+// Time-relative queries embed a timestamp in the request. Rounding it to the
+// day keeps the request string (and so the cache key, here and in the edge
+// function's DB cache) identical across calls; a per-second value made every
+// call a cache miss.
+const DAY = 24 * 3600;
+function daysAgo(days: number): number {
+  return Math.floor(Date.now() / 1000 / DAY) * DAY - days * DAY;
+}
+/** End of today, so "released by now" queries stay stable within the day. */
+function endOfToday(): number {
+  return Math.floor(Date.now() / 1000 / DAY) * DAY + DAY;
 }
 
 export async function searchGames(query: string): Promise<IGDBGame[]> {
@@ -100,7 +181,7 @@ export async function getGames(ids: number[]): Promise<IGDBGame[]> {
 }
 
 export async function getTrendingGames(): Promise<IGDBGame[]> {
-  const oneYearAgo = Math.floor(Date.now() / 1000) - 365 * 24 * 3600;
+  const oneYearAgo = daysAgo(365);
   const body = `${GAME_FIELDS} where rating_count > 50 & first_release_date > ${oneYearAgo}; sort rating_count desc; limit 24;`;
   return callProxy("/games", body);
 }
@@ -133,8 +214,8 @@ export async function getGamesByTags(
 }
 
 export async function getNewReleases(limit = 7): Promise<IGDBGame[]> {
-  const now = Math.floor(Date.now() / 1000);
-  const fourteenDaysAgo = now - 14 * 24 * 3600;
+  const now = endOfToday();
+  const fourteenDaysAgo = daysAgo(14);
   const body = `${GAME_FIELDS} where first_release_date >= ${fourteenDaysAgo} & first_release_date <= ${now} & hypes > 0; sort hypes desc; limit ${limit};`;
   return callProxy("/games", body);
 }
@@ -204,8 +285,7 @@ export async function getBrowseGames({
 
   let sortClause: string;
   if (sort === "new_releases") {
-    const now = Math.floor(Date.now() / 1000);
-    conditions.push(`first_release_date <= ${now}`);
+    conditions.push(`first_release_date <= ${endOfToday()}`);
     sortClause = "sort first_release_date desc";
   } else {
     conditions.push("rating_count > 10");

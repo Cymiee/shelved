@@ -24,11 +24,39 @@ interface CacheRow {
   expires_at: string;
 }
 
+// In-isolate cache in front of the database one. The function runs in a
+// different region from the database, so even a DB cache hit costs a
+// cross-region round trip; a warm isolate can answer repeats without it.
+const MEMORY_MAX_ENTRIES = 300;
+const memory = new Map<string, { value: unknown; expiresAt: number }>();
+
+function memoryGet<T>(key: string): T | null {
+  const hit = memory.get(key);
+  if (!hit) return null;
+  if (hit.expiresAt <= Date.now()) {
+    memory.delete(key);
+    return null;
+  }
+  return hit.value as T;
+}
+
+function memorySet(key: string, value: unknown, expiresAt: number): void {
+  if (memory.size >= MEMORY_MAX_ENTRIES) {
+    // Map iterates in insertion order, so this evicts the oldest entry.
+    const oldest = memory.keys().next().value;
+    if (oldest !== undefined) memory.delete(oldest);
+  }
+  memory.set(key, { value, expiresAt });
+}
+
 /**
- * Read a live cache entry. Returns null on miss, expiry, or any cache failure —
- * the cache is strictly an optimisation and must never break a request.
+ * Read a live cache entry: memory first, then the database. Returns null on
+ * miss, expiry, or any cache failure — the cache is strictly an optimisation
+ * and must never break a request.
  */
 async function cacheGet<T>(key: string): Promise<T | null> {
+  const inMemory = memoryGet<T>(key);
+  if (inMemory !== null) return inMemory;
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return null;
   try {
     const res = await fetch(
@@ -39,7 +67,9 @@ async function cacheGet<T>(key: string): Promise<T | null> {
     const rows = (await res.json()) as CacheRow[];
     const row = rows[0];
     if (!row) return null;
-    if (new Date(row.expires_at).getTime() <= Date.now()) return null;
+    const expiresAt = new Date(row.expires_at).getTime();
+    if (expiresAt <= Date.now()) return null;
+    memorySet(key, row.value, expiresAt);
     return row.value as T;
   } catch {
     return null;
@@ -54,6 +84,8 @@ declare const EdgeRuntime: { waitUntil?: (p: Promise<unknown>) => void } | undef
  * waitUntil keeps the isolate alive until the write lands.
  */
 function cacheSet(key: string, value: unknown, ttlSeconds: number): void {
+  const expiresAt = Date.now() + ttlSeconds * 1000;
+  memorySet(key, value, expiresAt);
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return;
   const write = fetch(`${SUPABASE_URL}/rest/v1/igdb_cache?on_conflict=key`, {
     method: "POST",
@@ -61,7 +93,7 @@ function cacheSet(key: string, value: unknown, ttlSeconds: number): void {
     body: JSON.stringify({
       key,
       value,
-      expires_at: new Date(Date.now() + ttlSeconds * 1000).toISOString(),
+      expires_at: new Date(expiresAt).toISOString(),
     }),
   }).catch(() => {});
 

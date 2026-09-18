@@ -10,6 +10,7 @@ import GameCard from "../components/GameCard";
 import ActivityCard from "../components/ActivityCard";
 import RecommendationRow from "../components/RecommendationRow";
 import FeaturedHero from "../components/FeaturedHero";
+import CommunityReviews from "../components/CommunityReviews";
 import LogGameModal from "../components/LogGameModal";
 import Spinner from "../components/Spinner";
 import Shelf, { ShelfHeader } from "../components/Shelf";
@@ -146,39 +147,6 @@ function GetStartedCard({ hasLogs }: { hasLogs: boolean }) {
       </div>
     </section>
   );
-}
-
-// ── Section header ───────────────────────────────────────────────────────────
-
-function SectionHeader({ title }: { title: string }) {
-  return (
-    <h2
-      style={{
-        fontFamily: "var(--font-display)",
-        fontSize: "0.72rem",
-        fontWeight: 600,
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        color: "var(--text-muted)",
-        marginBottom: "1rem",
-      }}
-    >
-      {title}
-    </h2>
-  );
-}
-
-// ── timeAgo helper ───────────────────────────────────────────────────────────
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
 }
 
 // ── Friends activity ─────────────────────────────────────────────────────────
@@ -408,6 +376,10 @@ export default function HomePage() {
             </div>
           </section>
         )}
+
+        {/* The community's newest reviews — people, not products. Everyone
+            sees this, signed in or not; it is the page's proof of life. */}
+        <CommunityReviews />
 
         {/* Personalised discovery leads. "Because you loved X" (seeded by a
             top-rated log) takes priority; otherwise fall back to genre-based. */}

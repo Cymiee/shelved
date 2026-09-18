@@ -1,6 +1,6 @@
 import type { SupabaseClient } from './client.js';
 import type { Database } from './client.js';
-import type { ActivityRow, UserRow } from '../types/index.js';
+import type { ActivityRow, UserRow, GameStatus } from '../types/index.js';
 
 export type ActivityWithUser = ActivityRow & {
   user: Pick<UserRow, 'id' | 'username' | 'avatar_url'>;
@@ -12,10 +12,12 @@ export type ReviewWithUser = {
   id: string;
   user_id: string;
   game_igdb_id: number;
+  status: GameStatus;
   rating: number | null;
   review: string;
   created_at: string;
-  user: Pick<UserRow, 'id' | 'username'>;
+  updated_at: string;
+  user: Pick<UserRow, 'id' | 'username' | 'avatar_url'>;
 };
 
 export async function getActivityWithUsers(
@@ -105,15 +107,38 @@ export async function getMostPlayedThisWeek(
     .slice(0, limit);
 }
 
+/**
+ * Newest written reviews across the whole community — the public "people are
+ * here" surface. Ordered by updated_at so a review added to an old log surfaces.
+ */
 export async function getRecentReviews(
   supabase: SupabaseClient<Database>,
-  limit = 5,
+  limit = 6,
 ): Promise<ReviewWithUser[]> {
   const { data, error } = await supabase
     .from('game_logs')
-    .select('id, user_id, game_igdb_id, rating, review, created_at, user:users!game_logs_user_id_fkey(id, username)')
+    .select('id, user_id, game_igdb_id, status, rating, review, created_at, updated_at, user:users!game_logs_user_id_fkey(id, username, avatar_url)')
     .not('review', 'is', null)
-    .order('created_at', { ascending: false })
+    .neq('review', '')
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as unknown as ReviewWithUser[];
+}
+
+/** Every written review for one game, newest first — the GamePage community block. */
+export async function getGameReviews(
+  supabase: SupabaseClient<Database>,
+  gameIgdbId: number,
+  limit = 20,
+): Promise<ReviewWithUser[]> {
+  const { data, error } = await supabase
+    .from('game_logs')
+    .select('id, user_id, game_igdb_id, status, rating, review, created_at, updated_at, user:users!game_logs_user_id_fkey(id, username, avatar_url)')
+    .eq('game_igdb_id', gameIgdbId)
+    .not('review', 'is', null)
+    .neq('review', '')
+    .order('updated_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
   return (data ?? []) as unknown as ReviewWithUser[];

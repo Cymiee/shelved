@@ -51,6 +51,7 @@ export {
   getTrendingGameIds,
   getMostPlayedThisWeek,
   getRecentReviews,
+  getGameReviews,
   getUserStats,
   getPopularLists,
 } from "./supabase/activity.js";

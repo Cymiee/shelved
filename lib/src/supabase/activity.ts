@@ -20,6 +20,26 @@ export type ReviewWithUser = {
   user: Pick<UserRow, 'id' | 'username' | 'avatar_url'>;
 };
 
+/**
+ * Every edit to a log writes a new activity row (rows are immutable), so one
+ * game re-rated three times would show up three times. Keep only the newest
+ * row per user+game. Input must be newest-first; output preserves that order.
+ */
+export function collapseActivity<T extends Pick<ActivityRow, 'user_id' | 'game_igdb_id'>>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const row of rows) {
+    const key = `${row.user_id}:${row.game_igdb_id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
+/** Fetch this many times the requested limit so collapsing still fills it. */
+const COLLAPSE_OVERFETCH = 3;
+
 export async function getActivityWithUsers(
   supabase: SupabaseClient<Database>,
   userIds: string[],
@@ -31,9 +51,9 @@ export async function getActivityWithUsers(
     .select('*, user:users!activity_user_id_fkey(id, username, avatar_url)')
     .in('user_id', userIds)
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(limit * COLLAPSE_OVERFETCH);
   if (error) throw error;
-  return (data ?? []) as unknown as ActivityWithUser[];
+  return collapseActivity((data ?? []) as unknown as ActivityWithUser[]).slice(0, limit);
 }
 
 export async function getFriendsActivity(

@@ -245,7 +245,9 @@ export default function ProfilePage() {
         margin: "0 auto",
         padding: isMobile ? "1.5rem 16px 3rem" : "2.5rem 24px 4rem",
         display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "280px 1fr",
+        // minmax(0, 1fr): a bare 1fr track grows to fit its widest child's
+        // min-content, which pushed the whole page past the viewport on phones.
+        gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "280px minmax(0, 1fr)",
         gap: isMobile ? "2rem" : "3rem",
         alignItems: "start",
       }}
@@ -728,6 +730,7 @@ export default function ProfilePage() {
                     activity={activity}
                     user={profile}
                     game={game}
+                    log={logs.find((l) => l.game_igdb_id === activity.game_igdb_id)}
                   />
                 );
               })}

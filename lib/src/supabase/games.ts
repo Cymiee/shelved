@@ -47,16 +47,38 @@ export async function upsertGameLog(
     row = data;
   }
 
-  // Record activity
+  // Record activity. The review text rides along in metadata so the feed can
+  // show what was said without a second lookup.
   const activityType: ActivityType = review ? "reviewed" : rating != null ? "rated" : "logged";
-  await client.from("activity").insert({
+  const { error: activityError } = await client.from("activity").insert({
     user_id: userId,
     type: activityType,
     game_igdb_id: gameIgdbId,
-    metadata: { status, rating: rating ?? null },
+    metadata: { status, rating: rating ?? null, review: review ?? null },
   });
+  if (activityError) throw activityError;
 
   return row;
+}
+
+/**
+ * Current logs for a set of users across a set of games — the feed uses this
+ * to show each activity's up-to-date rating and review rather than whatever
+ * was true when the row was written. Superset query; callers key by pair.
+ */
+export async function getLogsForPairs(
+  client: SupabaseClient<Database>,
+  userIds: string[],
+  gameIgdbIds: number[]
+): Promise<GameLogRow[]> {
+  if (userIds.length === 0 || gameIgdbIds.length === 0) return [];
+  const { data, error } = await client
+    .from("game_logs")
+    .select("*")
+    .in("user_id", userIds)
+    .in("game_igdb_id", gameIgdbIds);
+  if (error) throw error;
+  return data;
 }
 
 export async function getUserGameLogs(
@@ -96,12 +118,13 @@ export async function setTopGame(
     .upsert({ user_id: userId, position, game_igdb_id: gameIgdbId });
   if (error) throw error;
 
-  await client.from("activity").insert({
+  const { error: activityError } = await client.from("activity").insert({
     user_id: userId,
     type: "topped",
     game_igdb_id: gameIgdbId,
     metadata: { position },
   });
+  if (activityError) throw activityError;
 }
 
 export async function deleteGameLog(

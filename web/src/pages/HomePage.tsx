@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import type { IGDBGame, ActivityRow, UserRow } from "@gameboxd/lib";
-import { getFriendsActivityFeed, getPopularAmongFriends, getUsersByIds, GENRE_IGDB_MAP } from "@gameboxd/lib";
+import type { IGDBGame, ActivityRow, UserRow, GameLogRow } from "@gameboxd/lib";
+import { getFriendsActivityFeed, getPopularAmongFriends, getUsersByIds, getLogsForPairs, GENRE_IGDB_MAP } from "@gameboxd/lib";
 import type { GenreTag } from "@gameboxd/lib";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/auth";
@@ -147,28 +147,33 @@ interface FeedItem {
   activity: ActivityRow;
   user: Pick<UserRow, "id" | "username" | "avatar_url">;
   game: Pick<IGDBGame, "id" | "name" | "cover">;
+  /** The friend's current log for this game, for up-to-date rating/review. */
+  log: GameLogRow | undefined;
 }
 
-/** Recent friend activity — a single horizontally-scrollable row of cards. */
+/**
+ * Recent friend activity as posts. A wrapping grid rather than a scroll row:
+ * a feed is read down, not sideways, and each card now carries the review.
+ */
 function FriendsActivity({ items }: { items: FeedItem[] }) {
   return (
     <div
-      className="no-scrollbar stagger"
+      className="stagger"
       style={{
-        display: "flex",
-        gap: space[3],
-        overflowX: "auto",
-        paddingBottom: space[2],
-        scrollSnapType: "x proximity",
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))",
+        gap: space[4],
+        alignItems: "start",
       }}
     >
       {items.map((item) => (
-        <div
+        <ActivityCard
           key={item.activity.id}
-          style={{ flex: "0 0 300px", minWidth: 0, scrollSnapAlign: "start" }}
-        >
-          <ActivityCard activity={item.activity} user={item.user} game={item.game} />
-        </div>
+          activity={item.activity}
+          user={item.user}
+          game={item.game}
+          log={item.log}
+        />
       ))}
     </div>
   );
@@ -284,19 +289,25 @@ export default function HomePage() {
       const uniqueGameIds = [...new Set(feed.map((a) => a.game_igdb_id))];
       const uniqueUserIds = [...new Set(feed.map((a) => a.user_id))];
 
-      const [igdbGames, userRows] = await Promise.all([
+      const [igdbGames, userRows, logRows] = await Promise.all([
         getGames(uniqueGameIds),
         getUsersByIds(supabase, uniqueUserIds),
+        // Current ratings/reviews. Non-critical: without them cards fall back
+        // to the activity's own metadata.
+        getLogsForPairs(supabase, uniqueUserIds, uniqueGameIds).catch((): GameLogRow[] => []),
       ]);
 
       const gameMap = new Map(igdbGames.map((g) => [g.id, g]));
       const userMap = new Map(userRows.map((u) => [u.id, u]));
+      const logMap = new Map(logRows.map((l) => [`${l.user_id}:${l.game_igdb_id}`, l]));
 
       const items: FeedItem[] = [];
       for (const activity of feed) {
         const user = userMap.get(activity.user_id);
         const game = gameMap.get(activity.game_igdb_id);
-        if (user && game) items.push({ activity, user, game });
+        if (user && game) {
+          items.push({ activity, user, game, log: logMap.get(`${activity.user_id}:${activity.game_igdb_id}`) });
+        }
       }
       setFriendsFeed(items.slice(0, HOME_ACTIVITY_LIMIT));
     }

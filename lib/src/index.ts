@@ -24,6 +24,7 @@ export {
 export {
   upsertGameLog,
   getUserGameLogs,
+  getLogsForPairs,
   deleteGameLog,
   getTopGames,
   setTopGame,
@@ -47,6 +48,7 @@ export type { FriendStatusResult, FriendRating } from "./supabase/friends.js";
 
 // Activity helpers
 export {
+  collapseActivity,
   getActivityWithUsers,
   getFriendsActivity,
   getUserActivity,

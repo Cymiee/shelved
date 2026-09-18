@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./client.js";
 import type { FriendshipRow, ActivityRow, UserRow } from "../types/index.js";
+import { collapseActivity } from "./activity.js";
 
 export async function sendFriendRequest(
   client: SupabaseClient<Database>,
@@ -180,12 +181,13 @@ export async function getFriendsActivityFeed(
   const friendIds = await getFriends(client, userId);
   if (friendIds.length === 0) return [];
 
+  // Over-fetch so that collapsing repeat edits of one log still fills the limit.
   const { data, error } = await client
     .from("activity")
     .select("*")
     .in("user_id", friendIds)
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .limit(limit * 3);
   if (error) throw error;
-  return data;
+  return collapseActivity(data).slice(0, limit);
 }

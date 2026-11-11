@@ -63,24 +63,13 @@ export default function Navbar() {
     closeTimer.current = setTimeout(() => setDropdownOpen(false), 120);
   };
 
-  const navLinkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
-    color: isActive ? "var(--accent)" : "var(--text-muted)",
-    textDecoration: "none",
-    fontWeight: isActive ? 600 : 500,
-    fontSize: "var(--text-sm)",
-    // Larger touch target on mobile
-    padding: isMobile ? "0.6rem 0.15rem" : "0.25rem 0",
-    borderBottom: isActive ? "2px solid var(--accent)" : "2px solid transparent",
-    transition: "color 0.15s, border-color 0.15s",
-    whiteSpace: "nowrap",
-  });
-
   return (
     <>
     {logOpen && <LogSearchModal onClose={() => setLogOpen(false)} />}
     <nav
       style={{
-        background: scrolled ? "rgba(14, 13, 12, 0.82)" : "var(--bg-base)",
+        // Solid at the top of the page, then lets the wall show through a little.
+        background: scrolled ? "color-mix(in srgb, var(--bg-base) 86%, transparent)" : "var(--bg-base)",
         backdropFilter: scrolled ? "blur(12px)" : "none",
         WebkitBackdropFilter: scrolled ? "blur(12px)" : "none",
         borderBottom: "1px solid var(--border)",
@@ -100,56 +89,21 @@ export default function Navbar() {
           alignItems: "center",
           // On mobile the search form wraps onto its own full-width row
           flexWrap: isMobile ? "wrap" : "nowrap",
-          gap: isMobile ? "0.75rem" : "1.25rem",
+          gap: isMobile ? "0.75rem" : "0.5rem",
         }}
       >
-        {/* Wordmark — typographic, no icon */}
-        <Link
-          className="press"
-          to="/"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            textDecoration: "none",
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 600,
-              fontSize: isMobile ? "var(--text-lg)" : "var(--text-xl)",
-              color: "var(--text-primary)",
-              letterSpacing: "-0.015em",
-            }}
-          >
-            Shelved
-          </span>
-          {/* Amber tittle — the single accent mark in the chrome */}
-          <span
-            aria-hidden
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "var(--grad-brand)",
-              boxShadow: "var(--glow-soft)",
-              flexShrink: 0,
-              alignSelf: "flex-end",
-              marginBottom: isMobile ? 6 : 7,
-            }}
-          />
+        <Link className="wordmark" to="/" aria-label="Shelved, home" style={{ marginRight: isMobile ? 0 : "0.75rem" }}>
+          <span style={{ fontSize: isMobile ? "1rem" : "1.125rem" }}>Shelved</span>
         </Link>
 
         {/* Primary nav — desktop only; mobile uses the fixed BottomNav */}
         {!isMobile && (
           <>
-            <NavLink to="/" end style={navLinkStyle}>Home</NavLink>
-            <NavLink to="/explore" style={navLinkStyle}>Explore</NavLink>
-            {profile && <NavLink to="/shelf" style={navLinkStyle}>My Shelf</NavLink>}
+            <NavLink to="/" end className="nav-link">Home</NavLink>
+            <NavLink to="/explore" className="nav-link">Explore</NavLink>
+            {profile && <NavLink to="/shelf" className="nav-link">My shelf</NavLink>}
             {profile && (
-              <NavLink to={`/profile/${profile.id}`} style={navLinkStyle}>Profile</NavLink>
+              <NavLink to={`/profile/${profile.id}`} className="nav-link">Profile</NavLink>
             )}
           </>
         )}
@@ -162,142 +116,54 @@ export default function Navbar() {
             overflow: "hidden",
             marginLeft: isMobile ? 0 : "auto",
             opacity: searchOpen ? 1 : 0,
-            width: isMobile ? (searchOpen ? "100%" : 0) : (searchOpen ? 240 : 0),
+            width: isMobile ? (searchOpen ? "100%" : 0) : (searchOpen ? 260 : 0),
             transition: "width var(--transition-slow), opacity var(--transition-slow)",
             ...(isMobile && searchOpen ? { order: 10, flexBasis: "100%" } : {}),
           }}
         >
           <input
             ref={searchInputRef}
+            className="field"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search games..."
+            placeholder="Search games"
+            aria-label="Search games"
             tabIndex={searchOpen ? 0 : -1}
-            style={{
-              width: "100%",
-              padding: "0.5rem 1rem",
-              background: "var(--bg-card)",
-              border: "1px solid var(--border)",
-              color: "var(--text-primary)",
-              borderRadius: "var(--radius-full)",
-              fontSize: "var(--text-sm)",
-              outline: "none",
-              boxSizing: "border-box",
-              transition: "border-color var(--transition)",
-            }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent-ring)")}
-            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
+            // The focus ring is drawn inside so the collapsing form can't clip it
+            style={{ width: "100%", padding: "0.5rem 0.9rem", margin: 3 }}
           />
         </form>
 
-        {/* Search toggle */}
         <button
           type="button"
-          className="press"
+          className="icon-btn"
           aria-label={searchOpen ? "Close search" : "Search"}
           onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
-          style={{
-            marginLeft: isMobile ? "auto" : 0,
-            width: 40,
-            height: 40,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "transparent",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-full)",
-            color: "var(--text-secondary)",
-            cursor: "pointer",
-            flexShrink: 0,
-            transition: "border-color var(--transition), color var(--transition)",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border-strong)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
+          style={{ marginLeft: isMobile ? "auto" : 0 }}
         >
           {searchOpen ? <CloseIcon size={18} /> : <SearchIcon size={18} />}
         </button>
 
-        {/* + LOG — the primary CTA; opens a search-to-log flow */}
-        {profile && (
-          <button
-            type="button"
-            className="btn-pop"
-            onClick={() => setLogOpen(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.35rem",
-              padding: isMobile ? "0.5rem 0.85rem" : "0.5rem 1.05rem",
-              background: "var(--accent)",
-              border: "none",
-              color: "var(--on-accent)",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "var(--text-sm)",
-              fontWeight: 700,
-              letterSpacing: "0.03em",
-              cursor: "pointer",
-              flexShrink: 0,
-              fontFamily: "var(--font-body)",
-            }}
-          >
-            <PlusIcon size={15} /> LOG
+        {/* The primary action. On mobile it lives in the bottom bar instead,
+            under the thumb. */}
+        {profile && !isMobile && (
+          <button type="button" className="btn-key" onClick={() => setLogOpen(true)} style={{ marginLeft: "0.5rem" }}>
+            <PlusIcon size={15} /> Log a game
           </button>
         )}
 
-        {/* Auth buttons (logged out).
-            On mobile "Log in" drops its chrome to a plain text link — the
-            bordered pair overflowed the 375px row. */}
         {!profile && (
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: isMobile ? "0.6rem" : "0.5rem",
+              gap: "0.5rem",
               flexShrink: 0,
+              marginLeft: isMobile ? 0 : "0.5rem",
             }}
           >
-            <Link
-              to="/auth"
-              style={{
-                padding: isMobile ? "0.25rem 0" : "0.4rem 0.9rem",
-                background: "transparent",
-                border: isMobile ? "none" : "1px solid var(--border)",
-                color: "var(--text-secondary)",
-                borderRadius: "var(--radius-sm)",
-                fontSize: "var(--text-sm)",
-                textDecoration: "none",
-                transition: "border-color var(--transition), color var(--transition)",
-                whiteSpace: "nowrap",
-              }}
-              onMouseEnter={(e) => {
-                if (!isMobile) e.currentTarget.style.borderColor = "var(--border-strong)";
-                e.currentTarget.style.color = "var(--text-primary)";
-              }}
-              onMouseLeave={(e) => {
-                if (!isMobile) e.currentTarget.style.borderColor = "var(--border)";
-                e.currentTarget.style.color = "var(--text-secondary)";
-              }}
-            >
-              Log in
-            </Link>
-            <Link
-              className="btn-pop"
-              to="/auth?mode=signup"
-              style={{
-                padding: isMobile ? "0.4rem 0.9rem" : "0.45rem 1rem",
-                background: "var(--accent)",
-                border: "none",
-                color: "var(--on-accent)",
-                borderRadius: "var(--radius-sm)",
-                fontSize: "var(--text-sm)",
-                fontWeight: 600,
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-                fontFamily: "var(--font-body)",
-              }}
-            >
-              Sign up
-            </Link>
+            <Link to="/auth" className="nav-link">Log in</Link>
+            <Link className="btn-key" to="/auth?mode=signup">Sign up</Link>
           </div>
         )}
 
@@ -306,46 +172,54 @@ export default function Navbar() {
           <div
             onMouseEnter={openDropdown}
             onMouseLeave={closeDropdown}
-            style={{ position: "relative", flexShrink: 0 }}
+            style={{ position: "relative", flexShrink: 0, marginLeft: isMobile ? 0 : "0.25rem" }}
           >
-            <div
+            <button
+              type="button"
               // Hover alone doesn't work on touch screens — tap toggles too
               onClick={() => setDropdownOpen((o) => !o)}
+              aria-haspopup="menu"
+              aria-expanded={dropdownOpen}
+              aria-label="Account menu"
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: "0.5rem",
                 cursor: "pointer",
                 padding: "0.25rem 0.5rem",
-                borderRadius: "var(--radius-sm)",
+                border: 0,
+                borderRadius: "var(--radius-md)",
                 background: dropdownOpen ? "var(--bg-card)" : "transparent",
+                color: "var(--text-primary)",
                 transition: "background 0.15s",
               }}
             >
-              <div style={{ position: "relative", flexShrink: 0 }}>
+              <span style={{ position: "relative", display: "flex", flexShrink: 0 }}>
                 <Avatar username={profile.username} avatarUrl={profile.avatar_url} size={30} variant="solid" />
                 <NotificationBadge count={pendingRequests} floating />
-              </div>
+              </span>
               {!isMobile && (
-                <span style={{ color: "var(--text-primary)", fontSize: "0.875rem" }}>
-                  {profile.username}
-                </span>
+                <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{profile.username}</span>
               )}
-              <span
+              <svg
+                width="10"
+                height="10"
+                viewBox="0 0 10 10"
+                aria-hidden
                 style={{
                   color: "var(--text-muted)",
-                  fontSize: "0.6rem",
-                  marginLeft: 2,
-                  display: "inline-block",
                   transform: dropdownOpen ? "rotate(180deg)" : "none",
                   transition: "transform var(--transition)",
                 }}
-              >▼</span>
-            </div>
+              >
+                <path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
 
             {dropdownOpen && (
               <div
                 className="reveal-pop"
+                role="menu"
                 onMouseEnter={openDropdown}
                 onMouseLeave={closeDropdown}
                 style={{
@@ -353,9 +227,9 @@ export default function Navbar() {
                   top: "calc(100% + 6px)",
                   right: 0,
                   background: "var(--bg-card)",
-                  border: "1px solid var(--border)",
+                  border: "1.5px solid var(--border-strong)",
                   borderRadius: "var(--radius-md)",
-                  minWidth: 170,
+                  minWidth: 180,
                   boxShadow: "var(--shadow-lift)",
                   overflow: "hidden",
                   zIndex: 200,
@@ -364,7 +238,7 @@ export default function Navbar() {
                 }}
               >
                 {[
-                  // Profile and My Shelf live in the primary nav now, so the
+                  // Profile and My shelf live in the primary nav, so the
                   // dropdown carries only the secondary destinations.
                   { label: "Wishlist", to: "/want-to-play", badge: 0 },
                   { label: "Friends", to: "/friends", badge: pendingRequests },
@@ -373,20 +247,9 @@ export default function Navbar() {
                   <Link
                     key={item.to}
                     to={item.to}
+                    role="menuitem"
+                    className="menu-item"
                     onClick={() => setDropdownOpen(false)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: "0.5rem",
-                      padding: "0.6rem 1rem",
-                      color: "var(--text-primary)",
-                      textDecoration: "none",
-                      fontSize: "0.875rem",
-                      transition: "background 0.1s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-base)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     {item.label}
                     <NotificationBadge count={item.badge} />
@@ -396,24 +259,13 @@ export default function Navbar() {
                 <div style={{ height: 1, background: "var(--border)", margin: "0.25rem 0" }} />
 
                 <button
+                  role="menuitem"
+                  className="menu-item menu-item--danger"
                   onClick={handleLogout}
                   disabled={loggingOut}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "0.6rem 1rem",
-                    background: "none",
-                    border: "none",
-                    color: "var(--danger)",
-                    fontSize: "0.875rem",
-                    cursor: loggingOut ? "not-allowed" : "pointer",
-                    opacity: loggingOut ? 0.6 : 1,
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-base)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                  style={{ cursor: loggingOut ? "not-allowed" : "pointer", opacity: loggingOut ? 0.6 : 1 }}
                 >
-                  {loggingOut ? "Logging out..." : "Log out"}
+                  {loggingOut ? "Logging out…" : "Log out"}
                 </button>
               </div>
             )}

@@ -50,14 +50,16 @@ export default function CommunityReviews({ limit = 6 }: Props) {
 
   return (
     <section style={{ marginBottom: space[7] }}>
-      <ShelfHeader title="Fresh Reviews" count={items.length} />
+      <ShelfHeader title="Fresh reviews" count={items.length} />
       <div
-        className="stagger"
+        className="paper-wall"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))",
-          gap: space[4],
+          gap: `${space[6]} ${space[5]}`,
           alignItems: "start",
+          // room for the tape and the corner sticker that overhang each card
+          paddingTop: space[3],
         }}
       >
         {items.map(({ review, game }) => (

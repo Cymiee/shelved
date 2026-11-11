@@ -12,8 +12,13 @@ html, body {
   overflow-x: clip;
 }
 
+html { scroll-behavior: smooth; }
+
 body {
-  background: var(--bg-base);
+  /* The shop wall: navy pegboard. The dots scroll with the page, as a wall would. */
+  background-color: var(--bg-base);
+  background-image: radial-gradient(circle at center, rgba(255, 255, 255, 0.05) 1.5px, transparent 2px);
+  background-size: 28px 28px;
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: var(--text-base);
@@ -22,20 +27,30 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Display face — editorial, used for headings and the wordmark. */
+/* ── Type ────────────────────────────────────────────────────────────────── */
+
+/* Display face. Anybody is variable-width, so the "voice" is set by
+   font-stretch: condensed for titles that must fit, expanded for shouting. */
 .display {
   font-family: var(--font-display);
-  font-optical-sizing: auto;
+  font-stretch: 86%;
+  font-weight: 800;
   letter-spacing: -0.01em;
 }
 
-/* Small uppercase "library label" — shelf headers, eyebrows, field labels. */
+/* Every inline `fontFamily: var(--font-display)` in the app gets the slightly
+   condensed width by default, so long game titles fit. Components that want a
+   different width set `fontStretch` inline, which wins over this rule. */
+[style*="var(--font-display)"] { font-stretch: 86%; }
+
+/* Small label for fields and section headings. Sentence case, no tracking. */
 .label {
+  font-family: var(--font-display);
+  font-stretch: 86%;
   font-size: var(--label-size);
-  font-weight: 600;
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text-secondary);
 }
 
 /* iOS Safari zooms into focused fields when their font-size is under 16px */
@@ -50,100 +65,30 @@ a {
   text-decoration: none;
   transition: color var(--transition);
 }
-
-a:hover {
-  color: var(--accent-hover);
-}
-
-/* Hide scrollbars on horizontal shelf rows without losing scrollability */
-.no-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge */
-}
-
-/* Only apply this Firefox-specific property where supported */
-@supports (scrollbar-width: none) {
-  .no-scrollbar {
-    scrollbar-width: none; /* Firefox */
-  }
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Visible focus for keyboard users only */
-:focus-visible {
-  outline: 2px solid var(--accent-ring);
-  outline-offset: 2px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes skeletonPulse {
-  0%, 100% { opacity: 0.35; }
-  50%      { opacity: 0.65; }
-}
-
-/* ── Auth screen ─────────────────────────────────────────────────────────── */
-
-@keyframes authFadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Inputs/rows fade + slide in on load; stagger is set inline per field. */
-.auth-rise {
-  animation: authFadeUp 280ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-/* Gold focus: accent border + soft ring. */
-.auth-input {
-  transition: border-color 220ms cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 220ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.auth-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-dim);
-}
-
-/* Primary button lifts 1px + brightens on hover (keeps any gradient intact). */
-.auth-submit {
-  transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1),
-              filter 220ms cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 220ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.auth-submit:not(:disabled):hover {
-  transform: translateY(-1px);
-  filter: brightness(1.08);
-  box-shadow: var(--glow-accent);
-}
-.auth-submit:not(:disabled):active {
-  transform: translateY(0) scale(0.98);
-}
-
-/* Shelf covers lift a few px on hover. */
-.auth-cover {
-  transition: transform 240ms cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 240ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-.auth-cover:hover {
-  transform: translateY(-5px);
-}
-
-/* ── Global "cool" layer ─────────────────────────────────────────────────
-   Reusable motion + interaction primitives. Consume via className across
-   the app so every screen shares one rhythm. transform/opacity only. */
-
-html { scroll-behavior: smooth; }
+a:hover { color: var(--accent-hover); }
 
 ::selection {
   background: var(--accent);
   color: var(--on-accent);
 }
 
-/* Thin, on-brand scrollbar — a small detail that reads as polish. */
+/* Visible focus for keyboard users only */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button { font-family: inherit; }
+button, [role="button"], a, label[for], summary { touch-action: manipulation; }
+
+/* ── Scrollbars ──────────────────────────────────────────────────────────── */
+
+.no-scrollbar { -ms-overflow-style: none; }
+@supports (scrollbar-width: none) {
+  .no-scrollbar { scrollbar-width: none; }
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
@@ -157,77 +102,137 @@ html { scroll-behavior: smooth; }
 }
 *::-webkit-scrollbar-thumb:hover { background: var(--accent-ring); background-clip: content-box; }
 
-button, [role="button"], a, label[for], summary { touch-action: manipulation; }
+/* ── Keyframes ───────────────────────────────────────────────────────────── */
 
-/* ── Keyframes ──────────────────────────────────────────────────────────── */
-@keyframes riseIn      { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-@keyframes popIn       { from { opacity: 0; transform: scale(0.94); }      to { opacity: 1; transform: none; } }
-@keyframes auroraDrift { 0% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(0,-3%,0) scale(1.08); } 100% { transform: translate3d(0,0,0) scale(1); } }
-@keyframes shine       { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-@keyframes floaty      { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-@keyframes livePulse   { 0% { box-shadow: 0 0 0 0 var(--pulse-color, rgba(91,157,217,0.55)); } 70% { box-shadow: 0 0 0 6px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes spin          { to { transform: rotate(360deg); } }
+@keyframes skeletonPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.65; } }
+@keyframes riseIn        { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes popIn         { from { opacity: 0; transform: scale(0.94); }      to { opacity: 1; transform: none; } }
+@keyframes auroraDrift   { 0% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(0,-3%,0) scale(1.08); } 100% { transform: translate3d(0,0,0) scale(1); } }
+@keyframes shine         { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes livePulse     { 0% { box-shadow: 0 0 0 0 var(--pulse-color, rgba(87,199,255,0.6)); } 70% { box-shadow: 0 0 0 6px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
+/* A sticker being slapped on: lands oversized, settles at its tilt. */
+@keyframes stickerSlap {
+  0%   { opacity: 0; transform: rotate(var(--tilt, -8deg)) scale(1.9); }
+  60%  { opacity: 1; transform: rotate(var(--tilt, -8deg)) scale(0.9); }
+  100% { opacity: 1; transform: rotate(var(--tilt, -8deg)) scale(1); }
+}
+/* A case being slid onto the shelf from above. */
+@keyframes shelveIn {
+  from { opacity: 0; transform: translateY(-46px) rotate(var(--lean, -5deg)); }
+  to   { opacity: 1; transform: none; }
+}
+/* A case lifted out of the row and turned to face you. */
+@keyframes pullOut {
+  from { opacity: 0; transform: translateY(36px) scale(0.55) rotate(-5deg); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes spineHop {
+  0%, 100% { transform: translateY(0); }
+  40%      { transform: translateY(-32%); }
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: none; }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(16px) rotate(-2deg) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* Live "now playing" dot. */
 .pulse-dot { animation: livePulse 1.8s ease-out infinite; }
 
-/* ── Entrance reveals — set --d inline for stagger (e.g. style={{'--d':'80ms'}}) */
-.reveal       { animation: riseIn 520ms var(--ease-out) both; animation-delay: var(--d, 0ms); }
-.reveal-pop   { animation: popIn 420ms var(--ease-spring) both; animation-delay: var(--d, 0ms); }
+/* ── Entrances ───────────────────────────────────────────────────────────────
+   Used where something appears because the person asked for it (a menu, a
+   modal). Page content does not animate in on its own; the one orchestrated
+   load moment is the hero shelf (`.shelve-in`). */
+.reveal     { animation: riseIn 420ms var(--ease-out) both; animation-delay: var(--d, 0ms); }
+.reveal-pop { animation: popIn 320ms var(--ease-spring) both; animation-delay: var(--d, 0ms); }
+.shelve-in  { animation: shelveIn 560ms var(--ease-spring) both; animation-delay: var(--d, 0ms); }
 
-/* Auto-stagger direct children — no per-item delay wiring needed. */
-.stagger > *          { animation: riseIn 520ms var(--ease-out) both; }
-.stagger > *:nth-child(1) { animation-delay: 40ms; }
-.stagger > *:nth-child(2) { animation-delay: 90ms; }
-.stagger > *:nth-child(3) { animation-delay: 140ms; }
-.stagger > *:nth-child(4) { animation-delay: 190ms; }
-.stagger > *:nth-child(5) { animation-delay: 240ms; }
-.stagger > *:nth-child(6) { animation-delay: 290ms; }
-.stagger > *:nth-child(7) { animation-delay: 340ms; }
-.stagger > *:nth-child(8) { animation-delay: 390ms; }
+/* ── Interaction primitives ──────────────────────────────────────────────── */
 
-/* ── Interaction primitives ─────────────────────────────────────────────── */
-.hover-lift { transition: transform var(--transition-slow), box-shadow var(--transition-slow); will-change: transform; }
+.hover-lift { transition: transform var(--transition-slow), box-shadow var(--transition-slow); }
 .hover-lift:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
 
-.hover-glow { transition: box-shadow var(--transition-slow), border-color var(--transition-slow); }
-.hover-glow:hover { box-shadow: var(--glow-soft); border-color: var(--accent-ring); }
+.hover-glow { transition: border-color var(--transition-slow); }
+.hover-glow:hover { border-color: var(--border-strong); }
 
 /* Press feedback — subtle scale-down on tap/click. */
 .press { transition: transform var(--transition-fast); }
 .press:active { transform: scale(0.96); }
 
-/* Solid button that lifts crisply on hover; its icon rotates for a bit of
-   character. Works over any inline background (uses filter, not bg swap). */
-.btn-pop { transition: transform var(--transition-slow), box-shadow var(--transition-slow), filter var(--transition-slow); }
-.btn-pop:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); filter: brightness(1.05); }
-.btn-pop:active { transform: translateY(0) scale(0.96); }
-.btn-pop svg { transition: transform var(--transition-slow); }
-.btn-pop:hover svg { transform: rotate(90deg); }
+/* The pressable key: sits on a hard edge and sinks into it when pressed.
+   Yellow by default; `.btn-key--wall` is the quiet navy variant. */
+.btn-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1.15rem;
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 0;
+  border-radius: var(--radius-md);
+  box-shadow: var(--key-edge);
+  font-family: var(--font-display);
+  font-stretch: 92%;
+  font-weight: 800;
+  font-size: var(--text-sm);
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.08s var(--ease), box-shadow 0.08s var(--ease), background var(--transition);
+}
+.btn-key:hover { background: var(--accent-hover); color: var(--on-accent); }
+.btn-key:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 var(--accent-edge); }
+.btn-key:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Translucent light button — for use over imagery (e.g. the featured hero). */
+.btn-key--wall {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: 0 4px 0 var(--bg-inset), inset 0 0 0 1.5px var(--border-strong);
+}
+.btn-key--wall:hover { background: var(--border); color: var(--text-primary); }
+.btn-key--wall:active:not(:disabled) { box-shadow: 0 0 0 var(--bg-inset), inset 0 0 0 1.5px var(--border-strong); }
+
+.btn-key--lg { padding: 0.8rem 1.5rem; font-size: var(--text-base); }
+
+/* Legacy solid-button class — same sink-on-press behaviour as .btn-key,
+   but keeps whatever inline background the element already has. */
+.btn-pop {
+  box-shadow: var(--key-edge);
+  transition: transform 0.08s var(--ease), box-shadow 0.08s var(--ease), filter var(--transition);
+}
+.btn-pop:hover { filter: brightness(1.06); }
+.btn-pop:active { transform: translateY(4px); box-shadow: 0 0 0 var(--accent-edge); }
+
+/* Translucent light button — for use over imagery. */
 .btn-ghost-light {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(16, 23, 55, 0.55);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
   color: #fff;
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   transition: background var(--transition), border-color var(--transition);
 }
 .btn-ghost-light:hover:not(:disabled) {
-  background: rgba(255,255,255,0.16);
-  border-color: rgba(255,255,255,0.6);
+  background: rgba(16, 23, 55, 0.75);
+  border-color: #fff;
+  color: #fff;
 }
 
-/* Card that lifts, glows, and gives press feedback in one class. */
 .card-interactive {
   cursor: pointer;
   transition: transform var(--transition-slow), box-shadow var(--transition-slow), border-color var(--transition-slow);
-  will-change: transform;
 }
-.card-interactive:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); border-color: var(--border-strong); }
-.card-interactive:active { transform: translateY(-1px) scale(0.995); }
+.card-interactive:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); border-color: var(--border-strong); }
+.card-interactive:active { transform: translateY(-1px); }
 
-/* Gradient-clipped display text for hero moments. */
+/* Gradient-clipped display text. */
 .grad-text {
   background: var(--grad-vibe);
   -webkit-background-clip: text;
@@ -235,7 +240,6 @@ button, [role="button"], a, label[for], summary { touch-action: manipulation; }
   color: transparent;
 }
 
-/* Animated ambient backdrop — drop inside a position:relative hero. */
 .aurora {
   position: absolute;
   inset: -20%;
@@ -246,14 +250,12 @@ button, [role="button"], a, label[for], summary { touch-action: manipulation; }
   z-index: 0;
 }
 
-/* Shimmering gradient sweep — for premium CTAs / badges. */
 .shine {
   background-image: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%);
   background-size: 200% 100%;
   animation: shine 2.6s linear infinite;
 }
 
-/* Animated link underline that wipes in from the left. */
 .link-anim { position: relative; }
 .link-anim::after {
   content: ""; position: absolute; left: 0; bottom: -2px; height: 2px; width: 100%;
@@ -262,6 +264,501 @@ button, [role="button"], a, label[for], summary { touch-action: manipulation; }
 }
 .link-anim:hover::after { transform: scaleX(1); }
 
+/* ── Navigation ──────────────────────────────────────────────────────────── */
+
+/* The wordmark is a sticker: yellow label stock, stuck on a little crooked. */
+.wordmark { display: inline-flex; flex-shrink: 0; text-decoration: none; }
+.wordmark > span {
+  display: inline-block;
+  padding: 4px 11px 3px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 3px 0 var(--accent-edge);
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  transform: rotate(-3deg);
+  transition: transform var(--transition-slow);
+}
+.wordmark:hover > span { transform: rotate(2deg) scale(1.04); }
+
+.nav-link {
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-stretch: 90%;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color var(--transition), background var(--transition);
+}
+.nav-link:hover { color: var(--text-primary); background: var(--bg-raised); }
+.nav-link[aria-current="page"] {
+  color: var(--text-primary);
+  background: var(--bg-card);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition), background var(--transition);
+}
+.icon-btn:hover { border-color: var(--border-strong); color: var(--text-primary); background: var(--bg-raised); }
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: none;
+  border: 0;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.menu-item:hover { background: var(--bg-raised); color: var(--text-primary); }
+.menu-item--danger, .menu-item--danger:hover { color: var(--danger); }
+
+/* Mobile bottom bar */
+.tab-link {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 56px;
+  padding: 0.5rem 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.tab-link:hover { color: var(--text-secondary); }
+.tab-link[aria-current="page"] { color: var(--accent); }
+.tab-link[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 26px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--accent);
+}
+.tab-log {
+  width: 54px;
+  height: 54px;
+  margin: -16px 6px 0;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 4px 0 var(--accent-edge), 0 0 0 5px var(--bg-base);
+  cursor: pointer;
+  transition: transform 0.08s var(--ease), box-shadow 0.08s var(--ease);
+}
+.tab-log:active { transform: translateY(4px); box-shadow: 0 0 0 var(--accent-edge), 0 0 0 5px var(--bg-base); }
+
+/* ── The shelf plank ─────────────────────────────────────────────────────────
+   Anything with .on-plank stands on a segment of shelf. Each item draws its
+   own segment, overhanging half the gap on both sides, so a row of items
+   joins into one continuous plank, including in wrapping grids, where every
+   row becomes its own shelf. Set --plank-overhang to half the row's gap. */
+.on-plank {
+  position: relative;
+  padding-bottom: 11px;
+}
+.on-plank::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--plank-overhang, 8px) * -1);
+  right: calc(var(--plank-overhang, 8px) * -1);
+  bottom: 0;
+  height: 11px;
+  background: linear-gradient(
+    to bottom,
+    var(--plank-top) 0, var(--plank-top) 2px,
+    var(--plank) 2px, var(--plank) 5px,
+    var(--plank-front) 5px
+  );
+  box-shadow: 0 12px 14px -8px rgba(4, 7, 26, 0.75);
+  pointer-events: none;
+}
+
+/* ── Game card ───────────────────────────────────────────────────────────── */
+
+.game-card { width: 100%; }
+.game-card-title { color: var(--text-primary); transition: color var(--transition); }
+.game-card:hover .game-card-title { color: var(--accent); }
+
+/* Quick-log button: always there on touch screens; on hover-capable screens
+   it waits until the card is hovered or focused. */
+.quick-log {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: 0 3px 0 var(--accent-edge), 0 6px 14px rgba(4, 7, 26, 0.55);
+  cursor: pointer;
+  transition: opacity var(--transition), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.quick-log:active { transform: translateY(3px); box-shadow: 0 0 0 var(--accent-edge); }
+@media (hover: hover) {
+  .quick-log { opacity: 0; }
+  .game-card:hover .quick-log,
+  .quick-log:focus-visible { opacity: 1; }
+}
+
+/* ── Stickers ────────────────────────────────────────────────────────────── */
+
+.sticker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--accent);
+  color: var(--ink);
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-stretch: 80%;
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transform: rotate(var(--tilt, -8deg));
+  box-shadow: 0 2px 0 rgba(4, 7, 26, 0.45), inset 0 0 0 1.5px rgba(255, 255, 255, 0.4);
+}
+.sticker--slap { animation: stickerSlap 280ms var(--ease-out) both; }
+/* Perfect scores get the starburst. clip-path would cut a box-shadow off, so
+   the depth comes from a drop-shadow on the wrapper instead. */
+.sticker-burst-wrap {
+  display: inline-flex;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 0 rgba(4, 7, 26, 0.45));
+  transform: rotate(var(--tilt, -8deg));
+}
+.sticker-burst-wrap.sticker--slap { animation: stickerSlap 280ms var(--ease-out) both; }
+.sticker--burst {
+  background: var(--sticker-pink);
+  color: #fff;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ── Paper — shelf-talker cards ──────────────────────────────────────────────
+   Reviews and activity are written by people, so they sit on paper taped to
+   the wall. Put cards inside .paper-wall to get the slight hand-hung tilt. */
+.paper {
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 3px;
+  box-shadow: 0 1px 0 var(--paper-edge), 0 16px 26px -14px rgba(4, 7, 26, 0.8);
+  transform: rotate(var(--tilt, 0deg));
+  transition: transform var(--transition-slow);
+}
+.paper::before {
+  /* the strip of tape */
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 72px;
+  height: 20px;
+  margin-left: -36px;
+  background: rgba(255, 214, 10, 0.78);
+  box-shadow: 0 1px 2px rgba(4, 7, 26, 0.25);
+  transform: rotate(var(--tape-tilt, -2.5deg));
+  pointer-events: none;
+}
+.paper a { color: var(--ink); }
+.paper a:hover { color: var(--ink); text-decoration: underline; }
+.paper-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.paper-wall > .paper:nth-child(3n + 1) { --tilt: -0.7deg; --tape-tilt: 2deg; }
+.paper-wall > .paper:nth-child(3n + 2) { --tilt: 0.55deg; --tape-tilt: -3deg; }
+.paper-wall > .paper:nth-child(3n)     { --tilt: -0.3deg; --tape-tilt: 1deg; }
+@media (hover: hover) {
+  .paper-wall > .paper:hover { transform: rotate(0deg) translateY(-3px); }
+}
+
+/* ── Spines ──────────────────────────────────────────────────────────────────
+   The library as case spines on a shelf. Each spine takes its colours from
+   its own cover art, blown up and blurred. */
+.spine-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  column-gap: 3px;
+  row-gap: 26px;
+}
+.spine-row--single {
+  position: relative;
+  flex-wrap: nowrap;
+}
+.spine-row--single[data-full] { justify-content: space-between; }
+.spine-row--single::after {
+  /* one board the full width of the row, however many spines fit on it */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 11px;
+  background: linear-gradient(
+    to bottom,
+    var(--plank-top) 0, var(--plank-top) 2px,
+    var(--plank) 2px, var(--plank) 5px,
+    var(--plank-front) 5px
+  );
+  box-shadow: 0 12px 14px -8px rgba(4, 7, 26, 0.75);
+  pointer-events: none;
+}
+.spine-slot {
+  position: relative;
+  flex-shrink: 0;
+  --plank-overhang: 2px;
+}
+.spine {
+  position: relative;
+  display: block;
+  width: var(--spine-w, 42px);
+  height: var(--spine-h, 196px);
+  padding: 0;
+  border: 0;
+  border-radius: 3px 3px 1px 1px;
+  overflow: hidden;
+  background: var(--bg-card);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.26s var(--ease-spring);
+}
+.spine::before {
+  /* darkening for legible type + the rounded edge of a case */
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(to right, rgba(255,255,255,0.28) 0, rgba(255,255,255,0) 3px, rgba(0,0,0,0) calc(100% - 4px), rgba(0,0,0,0.38) 100%),
+    linear-gradient(to bottom, rgba(4,7,26,0.18), rgba(4,7,26,0.5));
+}
+.spine-art {
+  position: absolute;
+  top: -15%;
+  left: -40%;
+  width: 180%;
+  height: 130%;
+  object-fit: cover;
+  filter: blur(9px) saturate(1.7);
+}
+.spine-title {
+  position: absolute;
+  top: 36px;
+  bottom: 10px;
+  left: 0;
+  width: 100%;
+  z-index: 2;
+  writing-mode: vertical-rl;
+  /* line-height is the line's horizontal thickness here, so matching the
+     spine width centres the single line of type across the spine */
+  line-height: var(--spine-w, 42px);
+  font-family: var(--font-display);
+  font-stretch: 64%;
+  font-weight: 800;
+  font-size: var(--spine-font, 0.875rem);
+  letter-spacing: 0.01em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(4, 7, 26, 0.85);
+}
+.spine-dot {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  font-size: 0.7rem;
+  --tilt: -6deg;
+}
+.spine-slot[data-open="true"] .spine { transform: translateY(-16px); }
+.spine-slot[data-open="true"] { z-index: 30; }
+
+.spine-pull {
+  position: absolute;
+  bottom: calc(100% - 46px);
+  left: 50%;
+  width: 150px;
+  margin-left: -75px;
+  z-index: 31;
+  transform-origin: bottom center;
+  animation: pullOut 300ms var(--ease-spring) both;
+  filter: drop-shadow(0 18px 20px rgba(4, 7, 26, 0.7));
+  text-decoration: none;
+}
+.spine-slot[data-edge="left"]  .spine-pull { left: 0; margin-left: 0; transform-origin: bottom left; }
+.spine-slot[data-edge="right"] .spine-pull { left: auto; right: 0; margin-left: 0; transform-origin: bottom right; }
+.spine-pull-hint {
+  display: block;
+  margin-top: 6px;
+  padding: 5px 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-display);
+  font-stretch: 86%;
+  font-weight: 800;
+  font-size: var(--text-xs);
+  text-align: center;
+}
+@media (hover: hover) {
+  /* With a mouse the spine itself is the click target; the pulled case must
+     not sit between the pointer and the neighbouring spines. */
+  .spine-pull { pointer-events: none; }
+  .spine-pull-hint { display: none; }
+}
+
+/* ── Segmented control ───────────────────────────────────────────────────── */
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.segmented button {
+  padding: 0.35rem 0.8rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-stretch: 86%;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.segmented button:hover { color: var(--text-primary); }
+.segmented button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ── Fields ──────────────────────────────────────────────────────────────── */
+
+.field {
+  background: var(--bg-inset);
+  border: 1.5px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.field::placeholder { color: var(--text-muted); }
+.field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+
+/* ── Loader — three spines taking turns hopping off the shelf ────────────── */
+
+.spine-loader {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 12%;
+  flex-shrink: 0;
+}
+.spine-loader > span {
+  flex: 1;
+  height: 100%;
+  border-radius: 2px;
+  animation: spineHop 0.9s var(--ease) infinite;
+}
+.spine-loader > span:nth-child(1) { background: var(--accent); }
+.spine-loader > span:nth-child(2) { background: var(--sticker-pink); height: 78%; animation-delay: 0.12s; }
+.spine-loader > span:nth-child(3) { background: var(--sticker-sky); height: 90%; animation-delay: 0.24s; }
+
+/* ── Auth screen ─────────────────────────────────────────────────────────── */
+
+@keyframes authFadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.auth-rise { animation: authFadeUp 280ms var(--ease) both; }
+
+.auth-input {
+  transition: border-color 220ms var(--ease), box-shadow 220ms var(--ease);
+}
+.auth-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+.auth-submit {
+  transition: transform 0.08s var(--ease), box-shadow 0.08s var(--ease), filter 220ms var(--ease);
+}
+.auth-submit:not(:disabled):hover { filter: brightness(1.06); }
+.auth-submit:not(:disabled):active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 var(--accent-edge) !important;
+}
+
+.auth-cover { transition: transform 240ms var(--ease); }
+.auth-cover:hover { transform: translateY(-5px); }
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after {
@@ -269,5 +766,5 @@ button, [role="button"], a, label[for], summary { touch-action: manipulation; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .aurora, .shine, .floaty { animation: none !important; }
+  .aurora, .shine { animation: none !important; }
 }

@@ -1,21 +1,15 @@
 interface Props {
   size?: number;
-  thickness?: number;
 }
 
-export default function Spinner({ size = 36, thickness = 3 }: Props) {
+/** Loading indicator: three spines taking turns hopping off the shelf. */
+export default function Spinner({ size = 36 }: Props) {
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        border: `${thickness}px solid var(--border)`,
-        borderTopColor: "var(--accent)",
-        animation: "spin 0.65s linear infinite",
-        flexShrink: 0,
-      }}
-    />
+    <span className="spine-loader" role="status" aria-label="Loading" style={{ width: size, height: size }}>
+      <span />
+      <span />
+      <span />
+    </span>
   );
 }
 

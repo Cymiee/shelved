@@ -1,5 +1,5 @@
 import type { GameStatus } from "@gameboxd/lib";
-import { STATUS_META, font } from "../theme";
+import { STATUS_META, color as themeColor, font } from "../theme";
 
 interface Props {
   status: GameStatus;
@@ -7,59 +7,46 @@ interface Props {
 }
 
 /**
- * Small semantic status label. Deliberately a chip rather than a filled block —
- * status is metadata, not decoration, and must never compete with the accent.
+ * A game's status as a small printed label: solid sticker ink with dark type,
+ * so it reads the same on the navy wall and on a paper card.
  */
 export default function StatusChip({ status, size = "md" }: Props) {
   const meta = STATUS_META[status];
-  return <Chip label={meta.label} color={meta.color} dim={meta.dim} size={size} pulse={status === "playing"} />;
-}
+  const pulse = status === "playing";
 
-function Chip({
-  label,
-  color,
-  dim,
-  size,
-  pulse = false,
-}: {
-  label: string;
-  color: string;
-  dim: string;
-  size: "sm" | "md";
-  pulse?: boolean;
-}) {
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
-        padding: size === "sm" ? "2px 8px" : "3px 10px",
-        borderRadius: "var(--radius-full)",
-        background: dim,
-        border: `1px solid ${color}`,
-        color,
-        fontFamily: font.body,
+        padding: size === "sm" ? "1px 7px" : "2px 9px",
+        borderRadius: 4,
+        background: meta.color,
+        color: themeColor.ink,
+        fontFamily: font.display,
+        fontStretch: "84%",
         fontSize: size === "sm" ? "0.6875rem" : "var(--text-xs)",
-        fontWeight: 600,
-        letterSpacing: "0.02em",
+        fontWeight: 800,
         lineHeight: 1.5,
         whiteSpace: "nowrap",
       }}
     >
-      <span
-        aria-hidden
-        className={pulse ? "pulse-dot" : undefined}
-        style={{
-          width: 5,
-          height: 5,
-          borderRadius: "50%",
-          background: color,
-          flexShrink: 0,
-          ...(pulse ? { ["--pulse-color" as string]: color } : {}),
-        }}
-      />
-      {label}
+      {pulse && (
+        <span
+          aria-hidden
+          className="pulse-dot"
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: themeColor.ink,
+            flexShrink: 0,
+            ["--pulse-color" as string]: "rgba(22, 27, 61, 0.5)",
+          }}
+        />
+      )}
+      {meta.label}
     </span>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { IGDBGame } from "@gameboxd/lib";
 import { searchGames } from "../lib/igdb";
 import { useGamesStore } from "../store/games";
+import { useToastStore } from "../store/toast";
 import GameCover from "./GameCover";
 import Spinner from "./Spinner";
 import LogGameModal from "./LogGameModal";
@@ -17,6 +18,7 @@ export default function LogSearchModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<IGDBGame | null>(null);
   const logGame = useGamesStore((s) => s.logGame);
+  const showToast = useToastStore((s) => s.show);
 
   // Debounced search
   useEffect(() => {
@@ -51,6 +53,7 @@ export default function LogSearchModal({ onClose }: { onClose: () => void }) {
             (selected.genres ?? []).map((g) => g.id),
             playtimeMin,
           );
+          showToast(`Logged ${selected.name}`, { to: `/game/${selected.id}`, label: "View" });
           onClose();
         }}
       />
@@ -63,7 +66,7 @@ export default function LogSearchModal({ onClose }: { onClose: () => void }) {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "rgba(4, 7, 26, 0.78)",
         display: "flex",
         alignItems: "flex-start",
         justifyContent: "center",
@@ -77,7 +80,7 @@ export default function LogSearchModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "var(--bg-card)",
-          border: "1px solid var(--border)",
+          border: "1.5px solid var(--border-strong)",
           borderRadius: "var(--radius-lg)",
           padding: "1.25rem",
           width: "min(560px, 100%)",
@@ -89,7 +92,7 @@ export default function LogSearchModal({ onClose }: { onClose: () => void }) {
           animationDuration: "220ms",
         }}
       >
-        <label className="label" style={{ display: "block" }}>Log a game</label>
+        <h2 className="display" style={{ fontSize: "var(--text-xl)", lineHeight: 1.2 }}>Log a game</h2>
 
         {/* Search field */}
         <div
@@ -99,8 +102,8 @@ export default function LogSearchModal({ onClose }: { onClose: () => void }) {
             gap: "0.6rem",
             padding: "0.7rem 0.95rem",
             background: "var(--bg-inset)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-full)",
+            border: "1.5px solid var(--border)",
+            borderRadius: "var(--radius-md)",
           }}
         >
           <SearchIcon size={18} color="var(--text-muted)" />
@@ -108,7 +111,8 @@ export default function LogSearchModal({ onClose }: { onClose: () => void }) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search for a game to log..."
+            placeholder="Search for a game"
+            aria-label="Search for a game to log"
             style={{
               flex: 1,
               background: "none",
@@ -119,7 +123,7 @@ export default function LogSearchModal({ onClose }: { onClose: () => void }) {
               fontFamily: "var(--font-body)",
             }}
           />
-          {loading && <Spinner size={16} thickness={2} />}
+          {loading && <Spinner size={16} />}
         </div>
 
         {/* Results */}
@@ -156,7 +160,7 @@ export default function LogSearchModal({ onClose }: { onClose: () => void }) {
                   <GameCover name={game.name} imageId={game.cover?.image_id} size="thumb" rounding="sm" />
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "var(--text-sm)", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "var(--text-base)", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {game.name}
                   </div>
                   {year && (

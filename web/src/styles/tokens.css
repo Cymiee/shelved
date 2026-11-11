@@ -2,59 +2,86 @@
    Shelved design tokens — single source of truth.
    Consume via var(--token) in inline styles, or via theme.ts for TS ergonomics.
    Do not hardcode colors, radii, or spacing anywhere else.
+
+   The world: a game shop. A navy pegboard wall, games standing on shelf
+   planks, fluoro price-gun stickers, and paper cards taped up by the regulars.
    ──────────────────────────────────────────────────────────────────────────── */
 
 :root {
-  /* ── Background layers ──────────────────────────────────────────────────
-     Warm-tinted near-black. Subtle steps, never high contrast. */
-  --bg-base:     #0E0D0C;
-  --bg-raised:   #171614;
-  --bg-card:     #1E1C1A;
-  --bg-inset:    #131211;
+  /* ── The wall — a clearly blue navy, never neutral black ──────────────── */
+  --bg-base:     #101737;
+  --bg-raised:   #161F47;
+  --bg-card:     #1B2654;
+  --bg-inset:    #0B1029;
 
   /* Borders */
-  --border:        #2A2724;
-  --border-strong: #3A3632;
+  --border:        #2B3769;
+  --border-strong: #44539B;
 
-  /* ── Text ─────────────────────────────────────────────────────────────── */
-  --text-primary:   #F5F3F0;
-  --text-secondary: #A8A29B;
-  --text-muted:     #6E6963;
+  /* ── Text on the wall ─────────────────────────────────────────────────── */
+  --text-primary:   #F5F6FF;
+  --text-secondary: #B5BDE6;
+  --text-muted:     #8690C4;
 
-  /* ── Accent — amber/gold. The ONLY brand color. Use sparingly. ─────────── */
-  --accent:       #E0A82E;
-  --accent-hover: #EFBB47;
-  --accent-dim:   rgba(224, 168, 46, 0.12);
-  --accent-ring:  rgba(224, 168, 46, 0.55);
-  --on-accent:    #17140C;
+  /* ── Accent — price-gun yellow. The brand color. ──────────────────────── */
+  --accent:       #FFD60A;
+  --accent-hover: #FFE566;
+  --accent-dim:   rgba(255, 214, 10, 0.14);
+  --accent-ring:  rgba(255, 214, 10, 0.6);
+  --on-accent:    #101737;
+  /* Underside of a pressable yellow key — the "depth" a button sinks into. */
+  --accent-edge:  #B38F00;
 
-  /* ── Status colors — SEMANTIC ONLY, never brand. ──────────────────────── */
-  --status-playing:   #5B9DD9;
-  --status-completed: #4CA97E;
-  --status-played:    #5BC0BE;
-  --status-dropped:   #C4685F;
-  --status-wishlist:  #A98CD9;
-  --status-favorite:  #C9788C;
+  /* ── Paper — anything a person wrote (reviews, activity) sits on paper ── */
+  --paper:      #FBF6E3;
+  --paper-edge: #DDD4B4;
+  --ink:        #161B3D;
+  --ink-soft:   #4A5182;
+  --ink-faint:  rgba(22, 27, 61, 0.14);
 
-  /* Tinted backgrounds for status chips */
-  --status-playing-dim:   rgba(91, 157, 217, 0.14);
-  --status-completed-dim: rgba(76, 169, 126, 0.14);
-  --status-played-dim:    rgba(91, 192, 190, 0.14);
-  --status-dropped-dim:   rgba(196, 104, 95, 0.14);
-  --status-wishlist-dim:  rgba(169, 140, 217, 0.14);
-  --status-favorite-dim:  rgba(201, 120, 140, 0.14);
+  /* ── Sticker inks — fluoro label stock ────────────────────────────────── */
+  --sticker-pink:   #FF4F8B;
+  --sticker-orange: #FF8A3D;
+  --sticker-mint:   #2EE6A8;
+  --sticker-sky:    #57C7FF;
+  --sticker-lilac:  #B9A0FF;
+  --sticker-lime:   #B6F04A;
+
+  /* ── Status colors — SEMANTIC ONLY, one sticker ink each ──────────────── */
+  --status-playing:   var(--sticker-sky);
+  --status-completed: var(--sticker-mint);
+  --status-played:    var(--sticker-lime);
+  --status-dropped:   #FF7A6B;
+  --status-wishlist:  var(--sticker-lilac);
+  --status-favorite:  var(--sticker-pink);
+
+  /* Tinted backgrounds for status surfaces */
+  --status-playing-dim:   rgba(87, 199, 255, 0.16);
+  --status-completed-dim: rgba(46, 230, 168, 0.16);
+  --status-played-dim:    rgba(182, 240, 74, 0.16);
+  --status-dropped-dim:   rgba(255, 122, 107, 0.16);
+  --status-wishlist-dim:  rgba(185, 160, 255, 0.16);
+  --status-favorite-dim:  rgba(255, 79, 139, 0.16);
 
   /* Feedback */
-  --danger:  #C4685F;
-  --success: #4CA97E;
+  --danger:  #FF7A6B;
+  --success: #2EE6A8;
 
-  /* ── Radius scale ─────────────────────────────────────────────────────── */
-  --radius-sm:   8px;
-  --radius-md:   10px;
-  --radius-lg:   16px;
+  /* ── Shelf plank — lit top face, darker front edge ────────────────────── */
+  --plank-top:   #6474C8;
+  --plank:       #3A4A99;
+  --plank-front: #242F6B;
+
+  /* ── Radius scale — tight, like physical cases and labels ─────────────── */
+  --radius-sm:   5px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
   --radius-full: 999px;
+  /* Game cases — covers always use these, never the UI radii above */
+  --radius-case:    6px;
+  --radius-case-sm: 3px;
 
-  /* ── Spacing scale — err toward generous ──────────────────────────────── */
+  /* ── Spacing scale ────────────────────────────────────────────────────── */
   --space-1:  4px;
   --space-2:  8px;
   --space-3:  12px;
@@ -65,9 +92,11 @@
   --space-8:  64px;
   --space-9:  96px;
 
-  /* ── Typography ───────────────────────────────────────────────────────── */
-  --font-display: "Fraunces", Georgia, serif;
-  --font-body:    "Inter", system-ui, sans-serif;
+  /* ── Typography ───────────────────────────────────────────────────────────
+     Anybody is a variable-WIDTH face: expanded for headlines, ultra-condensed
+     for spines, all one family. Set width with `font-stretch`. */
+  --font-display: "Anybody", "Arial Narrow", system-ui, sans-serif;
+  --font-body:    "Figtree", system-ui, sans-serif;
 
   --text-xs:      0.75rem;   /* 12px — meta, captions */
   --text-sm:      0.875rem;  /* 14px — secondary body */
@@ -78,24 +107,20 @@
   --text-3xl:     2.25rem;   /* 36px */
   --text-display: clamp(2.5rem, 6vw, 3.75rem);
 
-  /* Eyebrow/label treatment — the "library label" voice */
-  --label-size:    0.7rem;
-  --label-tracking: 0.14em;
+  /* Small field/section label */
+  --label-size:    0.8125rem;
+  --label-tracking: 0;
 
-  /* ── Vibrancy — energetic "vibe" hues used ONLY for gradients / glows,
-        never as flat UI or text color. Amber stays the brand. ───────────── */
-  --vibe-coral:  #F0736A;
-  --vibe-violet: #A98CD9;
-  --vibe-blue:   #5B9DD9;
+  /* ── Gradients — kept few; the palette is flat sticker color ──────────── */
+  --vibe-coral:  var(--sticker-pink);
+  --vibe-violet: var(--sticker-lilac);
+  --vibe-blue:   var(--sticker-sky);
 
-  /* Brand gradient — amber, warmed. For hero CTAs, wordmark, key accents. */
-  --grad-brand:  linear-gradient(120deg, #EFBB47 0%, #E0A82E 55%, #D9885A 100%);
-  /* Youthful multi-hue sweep — for large display type / feature moments. */
-  --grad-vibe:   linear-gradient(120deg, #EFBB47 0%, #F0736A 48%, #A98CD9 100%);
-  /* Ambient aurora — layered radial glows for animated backdrops. */
-  --grad-aurora: radial-gradient(60% 55% at 15% 20%, rgba(224,168,46,0.18), transparent 60%),
-                 radial-gradient(50% 50% at 85% 15%, rgba(240,115,106,0.14), transparent 60%),
-                 radial-gradient(55% 60% at 75% 90%, rgba(169,140,217,0.14), transparent 60%);
+  --grad-brand:  linear-gradient(180deg, #FFE14A 0%, #FFD60A 100%);
+  --grad-vibe:   linear-gradient(100deg, #FFD60A 0%, #FF8A3D 55%, #FF4F8B 100%);
+  --grad-aurora: radial-gradient(60% 55% at 15% 20%, rgba(87,199,255,0.14), transparent 60%),
+                 radial-gradient(50% 50% at 85% 15%, rgba(255,79,139,0.12), transparent 60%),
+                 radial-gradient(55% 60% at 75% 90%, rgba(185,160,255,0.12), transparent 60%);
 
   /* ── Motion ───────────────────────────────────────────────────────────── */
   --ease:         cubic-bezier(0.4, 0, 0.2, 1);
@@ -105,13 +130,18 @@
   --transition:      0.18s var(--ease);
   --transition-slow: 0.32s var(--ease-out);
 
-  /* ── Elevation — restrained; depth via layering, not heavy shadows ─────── */
-  --shadow-card:  0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-lift:  0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-hover: 0 14px 44px rgba(0, 0, 0, 0.55);
-  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.65);
+  /* ── Elevation ────────────────────────────────────────────────────────── */
+  --shadow-card:  0 2px 0 rgba(4, 7, 26, 0.55);
+  --shadow-lift:  0 10px 24px rgba(4, 7, 26, 0.55);
+  --shadow-hover: 0 18px 36px rgba(4, 7, 26, 0.6);
+  --shadow-modal: 0 28px 70px rgba(4, 7, 26, 0.75);
 
-  /* Colored glow — for interactive/branded surfaces on hover/focus. */
-  --glow-accent: 0 0 0 1px var(--accent-ring), 0 10px 34px rgba(224, 168, 46, 0.22);
-  --glow-soft:   0 8px 30px rgba(224, 168, 46, 0.16);
+  /* The hard underside of a pressable key. Buttons sit on this and sink
+     into it when pressed (see .btn-key in index.css). */
+  --key-edge:    0 4px 0 var(--accent-edge);
+
+  --glow-accent: 0 0 0 2px var(--accent);
+  /* Legacy name: every solid yellow button already asks for this shadow, so
+     pointing it at the key edge gives them all the same chunky underside. */
+  --glow-soft:   var(--key-edge);
 }

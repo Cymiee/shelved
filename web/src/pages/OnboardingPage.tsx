@@ -222,7 +222,6 @@ export default function OnboardingPage() {
                 height: 5,
                 borderRadius: 999,
                 background: i <= stepIndex ? "var(--grad-brand)" : "var(--border)",
-                boxShadow: i <= stepIndex ? "var(--glow-soft)" : "none",
                 transition: "background 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out)",
               }}
             />
@@ -232,12 +231,12 @@ export default function OnboardingPage() {
         {/* Title */}
         <div>
           <h1
-            className="grad-text"
             style={{
               fontFamily: "var(--font-display)",
               fontSize: "var(--text-3xl)",
-              fontWeight: 600,
-              letterSpacing: "-0.015em",
+              fontWeight: 900,
+              lineHeight: 1.05,
+              letterSpacing: "-0.02em",
               margin: "0 0 0.4rem",
             }}
           >

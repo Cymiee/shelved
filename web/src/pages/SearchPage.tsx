@@ -69,7 +69,7 @@ export default function SearchPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(min(45%, 150px), 1fr))",
-            gap: "var(--space-4)",
+            gap: "var(--space-5) var(--space-4)",
           }}
         >
           {results.map((game) => (

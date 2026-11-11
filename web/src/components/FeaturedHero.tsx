@@ -1,14 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { IGDBGame } from "@gameboxd/lib";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { font, space } from "../theme";
 
 interface Props {
   game: IGDBGame;
   /** Secondary CTA label (differs by auth state). */
   secondaryLabel: string;
-  /** Logged-in: an action (e.g. add to wishlist). Mutually exclusive with secondaryTo. */
-  onSecondary?: () => void;
+  /** Shown in place of the label once the secondary action has run. */
+  secondaryDoneLabel?: string;
+  /**
+   * Logged-in: an action (e.g. add to wishlist). Mutually exclusive with
+   * secondaryTo. Reject to signal failure; the button then stays available.
+   */
+  onSecondary?: () => Promise<void>;
   /** Logged-out: a link target (e.g. /auth). Mutually exclusive with onSecondary. */
   secondaryTo?: string;
 }
@@ -21,179 +27,150 @@ function tagline(summary: string | null): string | null {
 }
 
 /**
- * Netflix-style featured hero: large artwork that fades into the page, with
- * minimal overlaid UI — game name, one-line tagline, and a single CTA.
+ * The shop window: the top trending game as one large framed display,
+ * with a sticker saying why it's there. It sits inside the page column rather
+ * than taking over the top of the screen, so it never pushes people's own
+ * content below the fold.
  */
-export default function FeaturedHero({ game, secondaryLabel, onSecondary, secondaryTo }: Props) {
+export default function FeaturedHero({ game, secondaryLabel, secondaryDoneLabel, onSecondary, secondaryTo }: Props) {
   const isMobile = useIsMobile();
-  const [added, setAdded] = useState(false);
-  const sectionRef = useRef<HTMLElement>(null);
-  const bgRef = useRef<HTMLImageElement>(null);
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const runSecondary = async () => {
+    if (!onSecondary) return;
+    setBusy(true);
+    try {
+      await onSecondary();
+      setDone(true);
+    } catch {
+      // The caller reports the failure; leave the button ready for another try.
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const artId = game.artworks?.[0]?.image_id ?? game.screenshots?.[0]?.image_id ?? game.cover?.image_id;
   const bg = artId ? `https://images.igdb.com/igdb/image/upload/t_1080p/${artId}.jpg` : null;
   const line = tagline(game.summary);
 
-  // Scroll parallax on the artwork — GSAP's job (CSS can't do scroll-driven).
-  // Lazy-loaded so GSAP stays off the initial bundle; skipped for reduced-motion.
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    if (!bgRef.current || !sectionRef.current) return;
-    let killed = false;
-    let ctx: { revert: () => void } | undefined;
-    (async () => {
-      const [{ gsap }, { ScrollTrigger }] = await Promise.all([import("gsap"), import("gsap/ScrollTrigger")]);
-      if (killed || !bgRef.current || !sectionRef.current) return;
-      gsap.registerPlugin(ScrollTrigger);
-      ctx = gsap.context(() => {
-        gsap.fromTo(
-          bgRef.current,
-          { scale: 1.12, yPercent: 0 },
-          {
-            yPercent: 10,
-            ease: "none",
-            scrollTrigger: { trigger: sectionRef.current, start: "top top", end: "bottom top", scrub: true },
-          },
-        );
-      });
-    })();
-    return () => { killed = true; ctx?.revert(); };
-  }, [game.id]);
-
   const secondaryStyle: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
-    padding: "0.8rem 1.6rem",
-    borderRadius: "var(--radius-sm)",
-    fontWeight: 600,
-    fontSize: "var(--text-base)",
-    fontFamily: "var(--font-body)",
+    padding: "0.6rem 1.15rem",
+    borderRadius: "var(--radius-md)",
+    fontFamily: font.display,
+    fontWeight: 800,
+    fontSize: "var(--text-sm)",
     textDecoration: "none",
   };
 
   return (
     <section
-      ref={sectionRef}
       style={{
         position: "relative",
         overflow: "hidden",
-        height: isMobile ? "66vh" : "78vh",
-        minHeight: isMobile ? 380 : 460,
         display: "flex",
         alignItems: "flex-end",
+        minHeight: isMobile ? 340 : 420,
+        marginBottom: space[7],
+        borderRadius: "var(--radius-lg)",
+        background: "var(--bg-card)",
+        boxShadow: "0 0 0 1.5px var(--border-strong), var(--shadow-lift)",
       }}
     >
       {bg && (
         <img
-          ref={bgRef}
           src={bg}
           alt=""
           aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            transform: "scale(1.12)",
-          }}
+          loading="lazy"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
         />
       )}
 
-      {/* Cinematic scrims — everything fades into the page background */}
+      {/* Scrims in the wall colour, so type stays readable over any artwork */}
       <div
         aria-hidden
         style={{
           position: "absolute",
           inset: 0,
           background:
-            "linear-gradient(to top, var(--bg-base) 1%, rgba(14,13,12,0.55) 32%, rgba(14,13,12,0.1) 68%), " +
-            "linear-gradient(to right, rgba(14,13,12,0.9) 0%, rgba(14,13,12,0.35) 45%, transparent 70%)",
+            "linear-gradient(to top, color-mix(in srgb, var(--bg-base) 94%, transparent) 0%, color-mix(in srgb, var(--bg-base) 55%, transparent) 42%, transparent 78%), " +
+            "linear-gradient(to right, color-mix(in srgb, var(--bg-base) 70%, transparent) 0%, transparent 62%)",
         }}
       />
 
-      <div
-        className="reveal"
+      {/* Why this game is in the window */}
+      <span
         style={{
-          position: "relative",
-          zIndex: 1,
-          width: "100%",
-          maxWidth: 1280,
-          margin: "0 auto",
-          padding: isMobile ? "0 16px 2.25rem" : "0 24px 4rem",
+          position: "absolute",
+          top: space[4],
+          left: space[4],
+          padding: "3px 11px",
+          background: "var(--accent)",
+          color: "var(--on-accent)",
+          borderRadius: "var(--radius-sm)",
+          boxShadow: "0 3px 0 var(--accent-edge)",
+          fontFamily: font.display,
+          fontWeight: 800,
+          fontSize: "var(--text-sm)",
+          transform: "rotate(-3deg)",
         }}
       >
-        <div className="label" style={{ marginBottom: "var(--space-3)", color: "var(--accent)" }}>
-          Featured
-        </div>
-        <h1
+        Trending now
+      </span>
+
+      <div style={{ position: "relative", width: "100%", padding: isMobile ? space[4] : space[6] }}>
+        <h2
           style={{
-            fontFamily: "var(--font-display)",
-            fontSize: isMobile ? "2.5rem" : "clamp(3rem, 6vw, 5rem)",
-            fontWeight: 600,
+            fontFamily: font.display,
+            fontStretch: "92%",
+            fontSize: "clamp(1.9rem, 4.6vw, 3.5rem)",
+            fontWeight: 900,
             letterSpacing: "-0.02em",
-            lineHeight: 1.02,
+            lineHeight: 1,
             color: "#fff",
             margin: 0,
-            maxWidth: "16ch",
-            textShadow: "0 2px 30px rgba(0,0,0,0.6)",
+            maxWidth: "18ch",
+            textWrap: "balance",
           }}
         >
           {game.name}
-        </h1>
+        </h2>
         {line && (
           <p
             style={{
-              marginTop: "var(--space-4)",
-              fontSize: isMobile ? "var(--text-base)" : "var(--text-lg)",
-              color: "rgba(245,243,240,0.85)",
-              lineHeight: 1.55,
-              maxWidth: "46ch",
-              textShadow: "0 1px 12px rgba(0,0,0,0.6)",
+              marginTop: space[3],
+              fontSize: "var(--text-base)",
+              color: "var(--text-primary)",
+              lineHeight: 1.5,
+              maxWidth: "52ch",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
             }}
           >
             {line}
           </p>
         )}
-        <div style={{ marginTop: "var(--space-6)", display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
-          {/* Primary — view the game */}
-          <Link
-            className="press"
-            to={`/game/${game.id}`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "0.8rem 1.9rem",
-              background: "var(--text-primary)",
-              color: "var(--bg-base)",
-              borderRadius: "var(--radius-sm)",
-              fontWeight: 700,
-              fontSize: "var(--text-base)",
-              fontFamily: "var(--font-body)",
-              textDecoration: "none",
-              boxShadow: "0 8px 30px rgba(0,0,0,0.45)",
-              transition: "transform var(--transition), filter var(--transition)",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(0.92)")}
-            onMouseLeave={(e) => (e.currentTarget.style.filter = "none")}
-          >
-            Learn More
-          </Link>
+        <div style={{ marginTop: space[4], display: "flex", gap: space[3], flexWrap: "wrap" }}>
+          <Link className="btn-key" to={`/game/${game.id}`}>View game</Link>
 
-          {/* Secondary — a distinct action, not a duplicate link */}
           {secondaryTo ? (
-            <Link className="press btn-ghost-light" to={secondaryTo} style={secondaryStyle}>
+            <Link className="btn-ghost-light" to={secondaryTo} style={secondaryStyle}>
               {secondaryLabel}
             </Link>
           ) : (
             <button
               type="button"
-              className="press btn-ghost-light"
-              disabled={added}
-              onClick={() => { onSecondary?.(); setAdded(true); }}
-              style={{ ...secondaryStyle, cursor: added ? "default" : "pointer", opacity: added ? 0.85 : 1 }}
+              className="btn-ghost-light"
+              disabled={done || busy}
+              onClick={() => { void runSecondary(); }}
+              style={{ ...secondaryStyle, cursor: done || busy ? "default" : "pointer" }}
             >
-              {added ? "✓ On your list" : secondaryLabel}
+              {done ? (secondaryDoneLabel ?? secondaryLabel) : secondaryLabel}
             </button>
           )}
         </div>

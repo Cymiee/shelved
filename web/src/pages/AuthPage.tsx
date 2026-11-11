@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
 import { useIsMobile } from "../hooks/useIsMobile";
 import GameCover from "../components/GameCover";
@@ -151,7 +151,7 @@ export default function AuthPage() {
       <div
         style={{
           flex: 1,
-          background: "var(--bg-base)",
+          // no fill: the pegboard wall shows through on this side
           position: "relative",
           display: "flex",
           flexDirection: "column",
@@ -159,70 +159,32 @@ export default function AuthPage() {
           overflow: "hidden",
         }}
       >
-        {/* Soft radial glow behind the title */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            top: "34%",
-            left: "24%",
-            width: 520,
-            height: 520,
-            transform: "translate(-50%, -50%)",
-            background: "radial-gradient(circle, var(--accent-dim) 0%, transparent 62%)",
-            pointerEvents: "none",
-          }}
-        />
-        {/* Edge vignette for depth */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "radial-gradient(120% 120% at 50% 40%, transparent 58%, rgba(0,0,0,0.55) 100%)",
-            pointerEvents: "none",
-          }}
-        />
+        {/* Centre content — bottom padding keeps it clear of the cover shelf */}
+        <div style={{ position: "relative", padding: "0 3.5rem 9rem" }}>
+          <Link className="wordmark auth-rise" to="/" aria-label="Shelved, home" style={{ marginBottom: "var(--space-6)" }}>
+            <span style={{ fontSize: "1.375rem" }}>Shelved</span>
+          </Link>
 
-        {/* Centre content — nudged below true centre */}
-        <div style={{ position: "relative", padding: "0 3.5rem", transform: "translateY(48px)" }}>
-          <div className="label auth-rise" style={{ marginBottom: "var(--space-5)" }}>
-            Your game library
-          </div>
-
-          <div
-            className="auth-rise grad-text"
+          <h1
+            className="auth-rise"
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "3.75rem",
-              fontWeight: 600,
-              letterSpacing: "-0.02em",
-              marginBottom: "var(--space-6)",
-              lineHeight: 1,
+              fontStretch: "106%",
+              fontSize: "clamp(2.25rem, 4vw, 3.5rem)",
+              fontWeight: 900,
+              letterSpacing: "-0.03em",
+              marginBottom: "var(--space-5)",
+              lineHeight: 0.98,
+              maxWidth: "12ch",
               ...riseStyle(1),
             }}
           >
-            Shelved
-          </div>
-
-          <p
-            className="auth-rise"
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: "var(--text-lg)",
-              color: "var(--text-secondary)",
-              marginBottom: "var(--space-7)",
-              lineHeight: 1.65,
-              maxWidth: "34ch",
-              ...riseStyle(2),
-            }}
-          >
-            Track, rate, and discover games with your friends.
-          </p>
+            Every game you&rsquo;ve played, on one shelf.
+          </h1>
 
           <ul
             className="auth-rise"
-            style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "var(--space-4)", ...riseStyle(3) }}
+            style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "var(--space-3)", ...riseStyle(2) }}
           >
             {[
               "Log every game you play",
@@ -233,7 +195,7 @@ export default function AuthPage() {
                 key={text}
                 style={{
                   fontFamily: "var(--font-body)",
-                  fontSize: "var(--text-sm)",
+                  fontSize: "var(--text-base)",
                   color: "var(--text-secondary)",
                   display: "flex",
                   gap: "var(--space-3)",
@@ -269,21 +231,14 @@ export default function AuthPage() {
               gap: "1rem",
               alignItems: "flex-end",
               padding: "0 3.5rem",
-              // The shelf line the covers sit on
-              borderBottom: "1px solid var(--border-strong)",
               paddingBottom: "0.6rem",
             }}
           >
             {COVER_IMAGES.map((cover) => (
               <div
                 key={cover.id}
-                className="auth-cover"
-                style={{
-                  width: 62,
-                  flexShrink: 0,
-                  borderRadius: "var(--radius-sm)",
-                  boxShadow: "0 6px 14px rgba(0,0,0,0.5)",
-                }}
+                className="auth-cover on-plank"
+                style={{ width: 62, flexShrink: 0 }}
               >
                 <GameCover name={cover.name} imageId={cover.id} size="cover_small" rounding="sm" />
               </div>
@@ -308,19 +263,9 @@ export default function AuthPage() {
         <div style={{ width: "100%", maxWidth: 380 }}>
           {/* Compact wordmark replaces the hidden brand panel on mobile */}
           {isMobile && (
-            <div
-              className="grad-text"
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "var(--text-3xl)",
-                fontWeight: 600,
-                letterSpacing: "-0.02em",
-                marginBottom: "var(--space-6)",
-                lineHeight: 1,
-              }}
-            >
-              Shelved
-            </div>
+            <Link className="wordmark" to="/" aria-label="Shelved, home" style={{ marginBottom: "var(--space-6)" }}>
+              <span style={{ fontSize: "1.25rem" }}>Shelved</span>
+            </Link>
           )}
           {/* "Sign in to continue" banner */}
           {fromPath && (
@@ -497,7 +442,7 @@ export default function AuthPage() {
               style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}
             >
               <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 0.25rem" }}>
-                Step 1 of 2 · Your email
+                Step 1 of 2: your email
               </p>
               <input
                 className="auth-input auth-rise"
@@ -531,7 +476,7 @@ export default function AuthPage() {
               style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}
             >
               <p style={{ fontSize: 13, color: "var(--text-muted)", margin: "0 0 0.25rem" }}>
-                Step 2 of 2 · Pick a username &amp; password
+                Step 2 of 2: pick a username and password
               </p>
               <input
                 className="auth-input auth-rise"

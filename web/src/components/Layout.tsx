@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import Navbar from "./Navbar";
 import BottomNav from "./BottomNav";
+import Toaster from "./Toaster";
 import { useIsMobile } from "../hooks/useIsMobile";
 
 export default function Layout() {
@@ -30,6 +31,7 @@ export default function Layout() {
         <Outlet />
       </main>
       {isMobile && <BottomNav />}
+      <Toaster />
     </div>
   );
 }

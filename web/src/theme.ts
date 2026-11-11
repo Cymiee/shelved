@@ -26,6 +26,12 @@ export const color = {
 
   danger: "var(--danger)",
   success: "var(--success)",
+
+  /** Paper surfaces — anything a person wrote. */
+  paper: "var(--paper)",
+  ink: "var(--ink)",
+  inkSoft: "var(--ink-soft)",
+  inkFaint: "var(--ink-faint)",
 } as const;
 
 export const radius = {
@@ -71,14 +77,13 @@ export const shadow = {
 
 export const transition = "var(--transition)";
 
-/** Shared style for the small uppercase "library label" used on shelf headers. */
+/** Shared style for small field and section labels. Mirrors `.label` in index.css. */
 export const labelStyle: React.CSSProperties = {
-  fontFamily: font.body,
+  fontFamily: font.display,
   fontSize: "var(--label-size)",
-  fontWeight: 600,
+  fontWeight: 700,
   letterSpacing: "var(--label-tracking)",
-  textTransform: "uppercase",
-  color: color.textMuted,
+  color: color.textSecondary,
 };
 
 /** Semantic status metadata — display label + its dedicated hue. */

@@ -6,7 +6,7 @@ interface Props {
   floating?: boolean;
 }
 
-/** Amber notification indicator. Renders nothing when count is 0. */
+/** Pink notification sticker — pink so it stands apart from the yellow brand. Renders nothing when count is 0. */
 export default function NotificationBadge({ count, variant = "count", floating = false }: Props) {
   if (count <= 0) return null;
 
@@ -22,7 +22,7 @@ export default function NotificationBadge({ count, variant = "count", floating =
           width: 9,
           height: 9,
           borderRadius: "50%",
-          background: "var(--accent)",
+          background: "var(--sticker-pink)",
           border: "2px solid var(--bg-base)",
           flexShrink: 0,
           ...floatStyle,
@@ -39,8 +39,8 @@ export default function NotificationBadge({ count, variant = "count", floating =
         height: 18,
         padding: "0 5px",
         borderRadius: "var(--radius-full)",
-        background: "var(--accent)",
-        color: "var(--on-accent)",
+        background: "var(--sticker-pink)",
+        color: "#fff",
         fontSize: "0.6875rem",
         fontWeight: 700,
         lineHeight: "18px",

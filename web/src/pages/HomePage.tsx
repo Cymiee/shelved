@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import type { IGDBGame, ActivityRow, UserRow, GameLogRow } from "@gameboxd/lib";
 import { getFriendsActivityFeed, getPopularAmongFriends, getUsersByIds, getLogsForPairs, GENRE_IGDB_MAP } from "@gameboxd/lib";
@@ -10,11 +10,14 @@ import GameCard from "../components/GameCard";
 import ActivityCard from "../components/ActivityCard";
 import RecommendationRow from "../components/RecommendationRow";
 import FeaturedHero from "../components/FeaturedHero";
+import HomeHero from "../components/HomeHero";
+import YourShelfStrip from "../components/YourShelfStrip";
 import CommunityReviews from "../components/CommunityReviews";
 import LogGameModal from "../components/LogGameModal";
 import Spinner from "../components/Spinner";
 import Shelf, { ShelfHeader, ShelfSkeleton } from "../components/Shelf";
 import { useGamesStore } from "../store/games";
+import { useToastStore } from "../store/toast";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { color, font, space } from "../theme";
 
@@ -58,83 +61,46 @@ function GetStartedCard({ hasLogs }: { hasLogs: boolean }) {
     <section
       style={{
         marginBottom: space[7],
-        padding: space[6],
+        padding: space[5],
         background: color.bgCard,
-        border: `1px solid ${color.border}`,
+        border: `1.5px dashed ${color.borderStrong}`,
         borderRadius: "var(--radius-lg)",
       }}
     >
-      <div className="label" style={{ marginBottom: space[3] }}>
-        Getting started
-      </div>
       <h2
         style={{
           fontFamily: font.display,
           fontSize: "var(--text-xl)",
-          fontWeight: 600,
-          letterSpacing: "-0.01em",
+          fontWeight: 800,
+          lineHeight: 1.2,
           color: color.text,
           margin: 0,
           marginBottom: space[2],
         }}
       >
-        {hasLogs ? "Your friends' activity will show up here" : "Start your shelf"}
+        {hasLogs ? "Your friends' activity will show up here" : "Your shelf is empty"}
       </h2>
       <p
         style={{
           color: color.textSecondary,
-          fontSize: "var(--text-sm)",
-          lineHeight: 1.6,
+          fontSize: "var(--text-base)",
+          lineHeight: 1.55,
           margin: 0,
           marginBottom: space[5],
           maxWidth: "52ch",
         }}
       >
         {hasLogs
-          ? "Once you add friends, what they log, rate and review lands on this page."
-          : "Log a game you've played to build your library — then add friends to see what they're playing."}
+          ? "Add a friend and what they log, rate and review lands on this page."
+          : "Log a game you've played to put the first case on it. Then add friends to see what they're playing."}
       </p>
 
       <div style={{ display: "flex", gap: space[3], flexWrap: "wrap" }}>
-        <Link
-          to="/explore"
-          style={{
-            padding: "0.6rem 1.35rem",
-            background: color.accent,
-            color: color.onAccent,
-            borderRadius: "var(--radius-sm)",
-            fontSize: "var(--text-sm)",
-            fontWeight: 600,
-            textDecoration: "none",
-            transition: "background var(--transition)",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = color.accentHover)}
-          onMouseLeave={(e) => (e.currentTarget.style.background = color.accent)}
-        >
-          Explore games
+        <Link to={hasLogs ? "/friends" : "/explore"} className="btn-key">
+          {hasLogs ? "Find friends" : "Explore games"}
         </Link>
-        <Link
-          to="/friends"
-          style={{
-            padding: "0.6rem 1.35rem",
-            background: "transparent",
-            border: `1px solid ${color.border}`,
-            color: color.textSecondary,
-            borderRadius: "var(--radius-sm)",
-            fontSize: "var(--text-sm)",
-            textDecoration: "none",
-            transition: "border-color var(--transition), color var(--transition)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = color.accentRing;
-            e.currentTarget.style.color = color.accent;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = color.border;
-            e.currentTarget.style.color = color.textSecondary;
-          }}
-        >
-          Find friends
+        <Link to={hasLogs ? "/explore" : "/friends"} className="btn-key btn-key--wall">
+          {hasLogs ? "Explore games" : "Find friends"}
         </Link>
       </div>
     </section>
@@ -158,12 +124,14 @@ interface FeedItem {
 function FriendsActivity({ items }: { items: FeedItem[] }) {
   return (
     <div
-      className="stagger"
+      className="paper-wall"
       style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))",
-        gap: space[4],
+        gap: `${space[6]} ${space[5]}`,
         alignItems: "start",
+        // room for the tape and the corner sticker that overhang each card
+        paddingTop: space[3],
       }}
     >
       {items.map((item) => (
@@ -187,10 +155,13 @@ const HOME_ACTIVITY_FETCH = 12;
 // ── HomePage ─────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
-  const { userId, profile, profileTags } = useAuthStore();
+  const { userId, profileTags } = useAuthStore();
   const { logGame, logs, fetchLogs } = useGamesStore();
-  const navigate = useNavigate();
+  const showToast = useToastStore((s) => s.show);
   const isMobile = useIsMobile();
+  // Until the user's logs have loaded we can't tell an empty shelf from a
+  // loading one, and must not flash the "your shelf is empty" prompt.
+  const [logsLoaded, setLogsLoaded] = useState(false);
 
   const [recommended, setRecommended] = useState<IGDBGame[]>([]);
   const [recommendedLoading, setRecommendedLoading] = useState(false);
@@ -199,8 +170,11 @@ export default function HomePage() {
   const [seedGame, setSeedGame] = useState<IGDBGame | null>(null);
   const [seedRecs, setSeedRecs] = useState<IGDBGame[]>([]);
 
-  const [trending, setTrending] = useState<IGDBGame[]>([]);
+  // The full trending set feeds the signed-out hero shelf; the shelf row
+  // further down shows just the top of it.
+  const [trendingAll, setTrendingAll] = useState<IGDBGame[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(true);
+  const trending = trendingAll.slice(0, 7);
 
   const [newReleases, setNewReleases] = useState<IGDBGame[]>([]);
   const [newReleasesLoading, setNewReleasesLoading] = useState(true);
@@ -213,16 +187,26 @@ export default function HomePage() {
 
   const [quickLogGame, setQuickLogGame] = useState<IGDBGame | null>(null);
 
-  // Own logs — only used to tailor the get-started copy
+  // Own logs — drive the shelf strip, the get-started prompt and recommendations
   useEffect(() => {
     if (!userId) return;
-    void fetchLogs();
+    let cancelled = false;
+    (async () => {
+      try {
+        await fetchLogs();
+      } catch {
+        // Home still works without the user's own logs.
+      } finally {
+        if (!cancelled) setLogsLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [userId, fetchLogs]);
 
   // Trending
   useEffect(() => {
     getTrendingGames()
-      .then((g) => setTrending(g.slice(0, 7)))
+      .then(setTrendingAll)
       .catch(() => {})
       .finally(() => setTrendingLoading(false));
   }, []);
@@ -337,8 +321,19 @@ export default function HomePage() {
   const handleQuickLog = (game: IGDBGame) => setQuickLogGame(game);
   const hasActivity = friendsFeed.length > 0;
 
-  // Cinematic featured hero — the most hyped current title with wide art.
+  // The shop-window game — the top trending title that has wide art.
   const featured = trending.find((g) => g.artworks?.length || g.screenshots?.length) ?? trending[0] ?? newReleases[0] ?? null;
+
+  const addFeaturedToWishlist = async () => {
+    if (!featured) return;
+    try {
+      await logGame(featured.id, "want_to_play", undefined, undefined, (featured.genres ?? []).map((g) => g.id));
+      showToast(`Added ${featured.name} to your wishlist`, { to: "/want-to-play", label: "View" });
+    } catch (e) {
+      showToast(`Couldn't add ${featured.name}. Try again.`);
+      throw e;
+    }
+  };
 
   // Don't suggest games the user has already logged.
   const loggedIds = new Set(logs.map((l) => l.game_igdb_id));
@@ -346,34 +341,37 @@ export default function HomePage() {
   const seedRecsFresh = seedRecs.filter((g) => !loggedIds.has(g.id));
   const hasGenres = suggestionGenres.length > 0;
 
+  // The wishlist isn't on the shelf yet: those are games still in the shop.
+  const shelfLogs = logs.filter((l) => l.status !== "want_to_play");
+  const featuredOnShelf = featured != null && loggedIds.has(featured.id);
+
+  // Signed-out hero shelf: everything popular, without duplicates.
+  const heroGames = [...new Map([...trendingAll, ...newReleases].map((g) => [g.id, g])).values()];
+
   return (
     <div style={{ paddingBottom: "4rem" }}>
-      {/* ── Cinematic featured hero — large artwork fading into the page ── */}
-      {featured && (
-        <FeaturedHero
-          game={featured}
-          secondaryLabel={userId ? "＋ Want to Play" : "Start your shelf"}
-          {...(userId
-            ? { onSecondary: () => { void logGame(featured.id, "want_to_play", undefined, undefined, (featured.genres ?? []).map((g) => g.id)); } }
-            : { secondaryTo: "/auth" })}
-        />
-      )}
+      {/* Signed out: say what this is, and let people play with a shelf. */}
+      {!userId && <HomeHero games={heroGames} />}
 
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "1.5rem 16px 0" : "2.5rem 24px 0" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "2.5rem 16px 0" : "3.5rem 24px 0" }}>
 
-        {/* ── Friend activity leads — but only once there is any. With an empty
-               feed it would push the useful content below the fold, so
-               discovery leads instead and the prompt moves underneath. ── */}
+        {/* Signed in: their own shelf leads. */}
+        {userId && shelfLogs.length > 0 && <YourShelfStrip logs={shelfLogs} />}
+        {userId && logsLoaded && logs.length === 0 && <GetStartedCard hasLogs={false} />}
+
+        {/* ── Friend activity — only once there is any. With an empty feed it
+               would push the useful content below the fold, so discovery
+               leads instead and the prompt moves underneath. ── */}
         {userId && hasActivity && (
           <section style={{ marginBottom: space[7] }}>
-            <ShelfHeader title="From Your Friends" count={friendsFeed.length} />
+            <ShelfHeader title="From your friends" count={friendsFeed.length} />
             <FriendsActivity items={friendsFeed} />
           </section>
         )}
 
         {userId && friendsFeedLoading && (
           <section style={{ marginBottom: space[7] }}>
-            <ShelfHeader title="From Your Friends" />
+            <ShelfHeader title="From your friends" />
             <div style={{ height: 120, display: "flex", alignItems: "center" }}>
               <Spinner />
             </div>
@@ -384,14 +382,26 @@ export default function HomePage() {
             sees this, signed in or not; it is the page's proof of life. */}
         <CommunityReviews />
 
-        {/* Personalised discovery leads. "Because you loved X" (seeded by a
+        {/* ── The shop window ── */}
+        {featured && (
+          <FeaturedHero
+            game={featured}
+            {...(userId
+              ? featuredOnShelf
+                ? { secondaryLabel: "Explore more", secondaryTo: "/explore" }
+                : { secondaryLabel: "Add to wishlist", secondaryDoneLabel: "On your wishlist", onSecondary: addFeaturedToWishlist }
+              : { secondaryLabel: "Start your shelf", secondaryTo: "/auth?mode=signup" })}
+          />
+        )}
+
+        {/* Personalised discovery. "Because you loved X" (seeded by a
             top-rated log) takes priority; otherwise fall back to genre-based. */}
         {userId && seedGame && seedRecsFresh.length > 0 ? (
           <RecommendationRow seed={seedGame} games={seedRecsFresh} onQuickLog={handleQuickLog} />
         ) : (
           userId && hasGenres && (recommendedLoading || recommendedFresh.length > 0) && (
             <GameShelf
-              title="Based on Your Genres"
+              title="Based on your genres"
               games={recommendedFresh}
               loading={recommendedLoading}
               onQuickLog={handleQuickLog}
@@ -400,14 +410,14 @@ export default function HomePage() {
         )}
 
         <GameShelf
-          title="Trending Now"
+          title="Trending now"
           games={trending}
           loading={trendingLoading}
           {...(userId ? { onQuickLog: handleQuickLog } : {})}
         />
 
         <GameShelf
-          title="New Releases"
+          title="New releases"
           games={newReleases}
           loading={newReleasesLoading}
           {...(userId ? { onQuickLog: handleQuickLog } : {})}
@@ -415,16 +425,16 @@ export default function HomePage() {
 
         {userId && (
           <GameShelf
-            title="Popular With Your Friends"
+            title="Popular with your friends"
             games={popularFriends}
             loading={popularFriendsLoading}
             onQuickLog={handleQuickLog}
           />
         )}
 
-        {/* Nothing to catch up on yet — point at the first useful action */}
-        {userId && !friendsFeedLoading && !hasActivity && (
-          <GetStartedCard hasLogs={logs.length > 0} />
+        {/* Has a shelf but nothing to catch up on yet — point at friends */}
+        {userId && !friendsFeedLoading && !hasActivity && logs.length > 0 && (
+          <GetStartedCard hasLogs />
         )}
       </div>
 
@@ -442,7 +452,9 @@ export default function HomePage() {
               (quickLogGame.genres ?? []).map((g) => g.id),
               playtimeMin,
             );
-            navigate(`/game/${quickLogGame.id}`);
+            // Stay on Home so several games can be logged in a row; the
+            // confirmation carries the link to the game instead.
+            showToast(`Logged ${quickLogGame.name}`, { to: `/game/${quickLogGame.id}`, label: "View" });
           }}
         />
       )}

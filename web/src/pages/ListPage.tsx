@@ -133,13 +133,13 @@ export default function ListPage() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(min(45%, 116px), 1fr))",
-            gap: "var(--space-4)",
+            gap: "var(--space-5) var(--space-4)",
           }}
         >
           {list.games.map((entry) => {
             const game = games.get(entry.game_igdb_id);
             return (
-              <div key={entry.id} style={{ position: "relative" }}>
+              <div key={entry.id} className="on-plank">
                 <GameCover
                   name={game?.name ?? "Game"}
                   imageId={game?.cover?.image_id}
@@ -156,6 +156,8 @@ export default function ListPage() {
                       position: "absolute",
                       top: 5,
                       right: 5,
+                      // above the cover even while it is lifted on hover
+                      zIndex: 6,
                       width: 24,
                       height: 24,
                       borderRadius: "50%",

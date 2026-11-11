@@ -1,7 +1,7 @@
-import { useState } from "react";
 import type { IGDBGame } from "@gameboxd/lib";
 import GameCover from "./GameCover";
-import { color, font, space, transition } from "../theme";
+import { PlusIcon } from "./icons";
+import { color, font, space } from "../theme";
 
 interface Props {
   game: IGDBGame;
@@ -9,80 +9,58 @@ interface Props {
   onQuickLog?: (game: IGDBGame) => void;
 }
 
+/**
+ * A game as it sits in the shop: the case standing on the shelf plank, with
+ * its name on the shelf-edge label underneath.
+ */
 export default function GameCard({ game, onSelect, onQuickLog }: Props) {
-  const [hovered, setHovered] = useState(false);
   const year = game.first_release_date
     ? new Date(game.first_release_date * 1000).getFullYear()
     : null;
 
   return (
-    <div
-      style={{ width: "100%" }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <GameCover
-        name={game.name}
-        imageId={game.cover?.image_id}
-        interactive
-        {...(onSelect ? { onClick: () => onSelect(game) } : {})}
-      >
-        {onQuickLog && hovered && (
-          <div
-            className="reveal"
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0.15))",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              animationDuration: "220ms",
-            }}
-          >
-            <button
-              className="reveal-pop press"
-              onClick={(e) => {
-                e.stopPropagation();
-                onQuickLog(game);
-              }}
-              aria-label={`Log ${game.name}`}
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: "50%",
-                background: "var(--grad-brand)",
-                border: "none",
-                color: color.onAccent,
-                fontSize: "1.6rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                lineHeight: 1,
-                flexShrink: 0,
-                boxShadow: "var(--glow-accent)",
-              }}
-            >
-              +
-            </button>
-          </div>
-        )}
-      </GameCover>
+    <div className="game-card">
+      <div className="on-plank">
+        <GameCover
+          name={game.name}
+          imageId={game.cover?.image_id}
+          interactive
+          {...(onSelect ? { onClick: () => onSelect(game) } : {})}
+          {...(onQuickLog
+            ? {
+                badge: (
+                  <button
+                    type="button"
+                    className="quick-log"
+                    aria-label={`Log ${game.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onQuickLog(game);
+                    }}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <PlusIcon size={18} />
+                  </button>
+                ),
+              }
+            : {})}
+        />
+      </div>
 
-      <div style={{ paddingTop: space[3] }}>
+      <div style={{ paddingTop: space[2] }}>
         <div
+          className="game-card-title"
           style={{
             fontFamily: font.display,
-            fontWeight: 600,
+            fontStretch: "78%",
+            fontWeight: 700,
             fontSize: "var(--text-sm)",
-            lineHeight: 1.35,
-            color: hovered ? color.accent : color.text,
-            transition: `color ${transition}`,
+            lineHeight: 1.2,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
             overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            overflowWrap: "anywhere",
           }}
         >
           {game.name}

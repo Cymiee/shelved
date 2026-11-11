@@ -1,96 +1,62 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
+import LogSearchModal from "./LogSearchModal";
+import { PlusIcon } from "./icons";
 
 /**
- * Fixed bottom navigation for mobile. Four primary destinations at most —
- * auth-only entries are hidden when signed out rather than redirecting, so the
- * bar stays uncluttered. Desktop uses the inline links in Navbar instead.
+ * Fixed bottom navigation for mobile. Four destinations at most, with the
+ * app's primary action — logging a game — raised in the middle, under the
+ * thumb. Auth-only entries are hidden when signed out rather than redirecting.
+ * Desktop uses the inline links in Navbar instead.
  */
 export default function BottomNav() {
   const { userId } = useAuthStore();
+  const [logOpen, setLogOpen] = useState(false);
 
-  const items = [
-    { to: "/", label: "Home", icon: HomeIcon, end: true },
-    { to: "/explore", label: "Explore", icon: ExploreIcon, end: false },
-    ...(userId
-      ? [
-          { to: "/shelf", label: "My Shelf", icon: ShelfIcon, end: false },
-          { to: `/profile/${userId}`, label: "Profile", icon: ProfileIcon, end: false },
-        ]
-      : []),
-  ];
+  const tab = (to: string, label: string, Icon: (p: IconProps) => JSX.Element, end = false) => (
+    <NavLink key={to} to={to} end={end} className="tab-link">
+      {({ isActive }) => (
+        <>
+          <Icon active={isActive} />
+          <span style={{ whiteSpace: "nowrap" }}>{label}</span>
+        </>
+      )}
+    </NavLink>
+  );
 
   return (
-    <nav
-      aria-label="Primary"
-      style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 120,
-        display: "flex",
-        background: "rgba(14, 13, 12, 0.92)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        borderTop: "1px solid var(--border)",
-        paddingBottom: "env(safe-area-inset-bottom)",
-      }}
-    >
-      {items.map(({ to, label, icon: Icon, end }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={end}
-          className="press"
-          style={({ isActive }) => ({
-            position: "relative",
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 3,
-            padding: "0.5rem 0.25rem",
-            minHeight: 54,
-            textDecoration: "none",
-            color: isActive ? "var(--accent)" : "var(--text-muted)",
-            fontSize: "0.6875rem",
-            fontWeight: isActive ? 600 : 500,
-            transition: "color var(--transition)",
-          })}
-        >
-          {({ isActive }) => (
-            <>
-              {/* Active-tab glow indicator */}
-              <span
-                aria-hidden
-                className={isActive ? "reveal-pop" : undefined}
-                style={{
-                  position: "absolute",
-                  top: 6,
-                  width: 22,
-                  height: 3,
-                  borderRadius: "var(--radius-full)",
-                  background: isActive ? "var(--grad-brand)" : "transparent",
-                  boxShadow: isActive ? "var(--glow-soft)" : "none",
-                }}
-              />
-              <span
-                style={{
-                  display: "inline-flex",
-                  transform: isActive ? "translateY(2px) scale(1.08)" : "none",
-                  transition: "transform var(--transition)",
-                }}
-              >
-                <Icon active={isActive} />
-              </span>
-              <span style={{ whiteSpace: "nowrap" }}>{label}</span>
-            </>
-          )}
-        </NavLink>
-      ))}
-    </nav>
+    <>
+      {logOpen && <LogSearchModal onClose={() => setLogOpen(false)} />}
+      <nav
+        aria-label="Primary"
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 120,
+          display: "flex",
+          background: "color-mix(in srgb, var(--bg-base) 94%, transparent)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderTop: "1px solid var(--border)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
+        {tab("/", "Home", HomeIcon, true)}
+        {tab("/explore", "Explore", ExploreIcon)}
+        {userId && (
+          <>
+            <button type="button" className="tab-log" aria-label="Log a game" onClick={() => setLogOpen(true)}>
+              <PlusIcon size={24} strokeWidth={2.8} />
+            </button>
+            {tab("/shelf", "My shelf", ShelfIcon)}
+            {tab(`/profile/${userId}`, "Profile", ProfileIcon)}
+          </>
+        )}
+      </nav>
+    </>
   );
 }
 
@@ -105,7 +71,7 @@ const base = (active: boolean) => ({
   height: 20,
   fill: "none" as const,
   stroke: "currentColor",
-  strokeWidth: active ? 2 : 1.6,
+  strokeWidth: active ? 2.2 : 1.7,
   strokeLinecap: "round" as const,
   strokeLinejoin: "round" as const,
 });
@@ -128,7 +94,7 @@ function ExploreIcon({ active }: IconProps) {
   );
 }
 
-/** Three book spines — matches the fallback glyph on GameCover. */
+/** Three spines — matches the fallback glyph on GameCover. */
 function ShelfIcon({ active }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden {...base(active)}>

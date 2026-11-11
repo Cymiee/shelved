@@ -64,14 +64,14 @@ const THEMES = THEMES_ALL.filter((t) => t.id !== 42);
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: "trending",      label: "Trending" },
-  { value: "top_rated",    label: "Top Rated" },
-  { value: "new_releases", label: "New Releases" },
+  { value: "top_rated",    label: "Top rated" },
+  { value: "new_releases", label: "New releases" },
 ];
 
 const SORT_TITLES: Record<SortMode, string> = {
-  trending:     "Trending Games",
-  top_rated:    "Top Rated Games",
-  new_releases: "New Releases",
+  trending:     "Trending games",
+  top_rated:    "Top rated games",
+  new_releases: "New releases",
 };
 
 const SORT_SUBTITLES: Record<SortMode, string> = {
@@ -91,29 +91,30 @@ function FilterPill({
   active: boolean;
   onClick: () => void;
 }) {
-  // Soft filled chips: inactive chips read as one quiet group instead of a
-  // wall of outlines; the active one lights up in accent.
+  // Category tags: inactive ones read as one quiet group; the active one
+  // becomes a solid yellow label.
   return (
     <button
+      type="button"
       onClick={onClick}
       className="press"
       aria-pressed={active}
       style={{
-        padding: "6px 14px",
-        borderRadius: "var(--radius-full)",
-        border: `1px solid ${active ? "var(--accent-ring)" : "transparent"}`,
-        background: active ? "var(--accent-dim)" : "var(--bg-inset)",
-        color: active ? "var(--accent)" : "var(--text-secondary)",
+        padding: "6px 12px",
+        borderRadius: "var(--radius-sm)",
+        border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+        background: active ? "var(--accent)" : "var(--bg-card)",
+        color: active ? "var(--on-accent)" : "var(--text-secondary)",
         cursor: "pointer",
         fontSize: 13,
-        fontWeight: active ? 600 : 500,
+        fontWeight: active ? 700 : 500,
         fontFamily: "var(--font-body)",
         whiteSpace: "nowrap",
         lineHeight: 1.5,
         transition: "background var(--transition), color var(--transition), border-color var(--transition)",
       }}
-      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = "var(--bg-card)"; e.currentTarget.style.color = "var(--text-primary)"; } }}
-      onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = "var(--bg-inset)"; e.currentTarget.style.color = "var(--text-secondary)"; } }}
+      onMouseEnter={(e) => { if (!active) { e.currentTarget.style.borderColor = "var(--border-strong)"; e.currentTarget.style.color = "var(--text-primary)"; } }}
+      onMouseLeave={(e) => { if (!active) { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; } }}
     >
       {label}
     </button>
@@ -203,7 +204,7 @@ export default function ExplorePage() {
     load
       .then((games) => { if (!cancelled) setResults(games); })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load games");
+        if (!cancelled) setError(e instanceof Error ? e.message : "Couldn't load games. Reload to try again.");
       })
       .finally(() => { if (!cancelled) setLoading(false); });
 
@@ -229,7 +230,7 @@ export default function ExplorePage() {
   const pageTitle = q
     ? `Results for "${q}"`
     : headingParts.length > 0
-    ? headingParts.join(" ") + " Games"
+    ? headingParts.join(" ") + " games"
     : SORT_TITLES[sort];
 
   const subtitle = q
@@ -250,7 +251,9 @@ export default function ExplorePage() {
     gridTemplateColumns: isMobile
       ? "repeat(auto-fill, minmax(100px, 1fr))"
       : "repeat(auto-fill, minmax(158px, 1fr))",
-    gap: isMobile ? 12 : 20,
+    gap: isMobile ? "20px 12px" : "28px 20px",
+    // half the column gap, so each card's plank segment meets its neighbour's
+    ["--plank-overhang" as string]: isMobile ? "6px" : "10px",
   };
 
   return (
@@ -273,8 +276,9 @@ export default function ExplorePage() {
                   width: 200,
                   flexShrink: 0,
                   position: "sticky",
-                  top: 24,
-                  maxHeight: "calc(100vh - 48px)",
+                  // clear the sticky navbar
+                  top: 80,
+                  maxHeight: "calc(100vh - 100px)",
                   overflowY: "auto",
                   scrollbarWidth: "none",
                 }
@@ -340,17 +344,19 @@ export default function ExplorePage() {
 
         {/* ── Main content ── */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Heading — "Explore" is the page identity; the h1 stays contextual */}
-          <div className="reveal" style={{ marginBottom: "1.5rem" }}>
-            <div className="label" style={{ marginBottom: "var(--space-2)" }}>Explore</div>
+          {/* Heading — says what the grid below is currently showing */}
+          <div style={{ marginBottom: "1.5rem" }}>
             <h1
               style={{
                 fontFamily: "var(--font-display)",
-                fontSize: "var(--text-3xl)",
-                fontWeight: 600,
-                letterSpacing: "-0.015em",
+                fontStretch: "104%",
+                fontSize: "clamp(2rem, 6vw, 3.25rem)",
+                fontWeight: 900,
+                letterSpacing: "-0.03em",
+                lineHeight: 1,
                 margin: 0,
                 color: "var(--text-primary)",
+                overflowWrap: "anywhere",
               }}
             >
               {pageTitle}
@@ -359,8 +365,8 @@ export default function ExplorePage() {
               <p
                 style={{
                   fontFamily: "var(--font-body)",
-                  fontSize: "var(--text-sm)",
-                  color: "var(--text-muted)",
+                  fontSize: "var(--text-base)",
+                  color: "var(--text-secondary)",
                   margin: "var(--space-2) 0 0",
                 }}
               >
@@ -472,7 +478,6 @@ export default function ExplorePage() {
           ) : (
             <div
               key={`${sort}-${selectedGenre}-${selectedTheme}-${q}`}
-              className="stagger"
               style={gridStyle}
             >
               {results.map((game) => (

@@ -198,7 +198,6 @@ export default function GamePage() {
           }}
         >
           <div
-            className="stagger"
             style={{
               maxWidth: 1280,
               width: "100%",
@@ -209,7 +208,7 @@ export default function GamePage() {
               alignItems: "center",
             }}
           >
-            <div style={{ width: isMobile ? 150 : 200, flexShrink: 0, boxShadow: "var(--glow-soft)", borderRadius: "var(--radius-lg)" }}>
+            <div style={{ width: isMobile ? 150 : 200, flexShrink: 0 }}>
               <GameCover name={game.name} imageId={game.cover?.image_id} />
             </div>
 
@@ -217,11 +216,13 @@ export default function GamePage() {
               <h1
                 style={{
                   fontFamily: "var(--font-display)",
-                  fontSize: "clamp(1.875rem, 3vw, 2.75rem)",
-                  fontWeight: 600,
-                  letterSpacing: "-0.02em",
+                  fontStretch: "96%",
+                  fontSize: "clamp(2rem, 4.4vw, 3.5rem)",
+                  fontWeight: 900,
+                  letterSpacing: "-0.025em",
                   color: "var(--text-primary)",
-                  lineHeight: 1.12,
+                  lineHeight: 1.02,
+                  textWrap: "balance",
                   margin: 0,
                   marginBottom: "var(--space-3)",
                 }}
@@ -271,7 +272,7 @@ export default function GamePage() {
                     style={{
                       fontFamily: "var(--font-display)",
                       fontSize: "var(--text-3xl)",
-                      fontWeight: 600,
+                      fontWeight: 900,
                       color: "var(--accent)",
                       lineHeight: 1,
                       fontVariantNumeric: "tabular-nums",
@@ -287,6 +288,8 @@ export default function GamePage() {
 
               <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
                 <button
+                  type="button"
+                  className="btn-key"
                   onClick={() => {
                     if (userId) {
                       setShowLogModal(true);
@@ -294,77 +297,36 @@ export default function GamePage() {
                       navigate(`/auth?from=/game/${id}`);
                     }
                   }}
-                  style={{
-                    padding: "0.65rem 1.5rem",
-                    background: "var(--accent)",
-                    border: "none",
-                    color: "var(--on-accent)",
-                    borderRadius: "var(--radius-sm)",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    fontSize: "var(--text-sm)",
-                    fontFamily: "var(--font-body)",
-                    transition: "background var(--transition)",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
                 >
                   {existingLog && existingLog.status !== "want_to_play" ? "Edit log" : "Log this game"}
                 </button>
 
                 {userId && (!existingLog || existingLog.status === "want_to_play") && (
                   <button
+                    type="button"
+                    className="btn-key btn-key--wall"
                     onClick={handleWantToPlay}
                     disabled={wtpSaving}
-                    style={{
-                      padding: "0.6rem 1.25rem",
-                      background: wantToPlay ? "var(--accent-dim)" : "transparent",
-                      border: `1px solid ${wantToPlay ? "var(--accent)" : "var(--border)"}`,
-                      color: wantToPlay ? "var(--accent)" : "var(--text-muted)",
-                      borderRadius: "var(--radius-sm)",
-                      cursor: wtpSaving ? "not-allowed" : "pointer",
-                      fontSize: "0.875rem",
-                      fontWeight: wantToPlay ? 600 : 400,
-                      opacity: wtpSaving ? 0.7 : 1,
-                    }}
+                    aria-pressed={wantToPlay}
+                    {...(wantToPlay ? { style: { boxShadow: "0 4px 0 var(--bg-inset), inset 0 0 0 1.5px var(--status-wishlist)", color: "var(--status-wishlist)" } } : {})}
                   >
-                    {wantToPlay ? "✓ Want to Play" : "+ Want to Play"}
+                    {wantToPlay ? "On your wishlist" : "Add to wishlist"}
+                  </button>
+                )}
+
+                {userId && (
+                  <button type="button" className="btn-key btn-key--wall" onClick={() => setShowAddToList(true)}>
+                    Add to list
                   </button>
                 )}
 
                 {userId && (
                   <button
-                    onClick={() => setShowAddToList(true)}
-                    style={{
-                      padding: "0.6rem 1.25rem",
-                      background: "transparent",
-                      border: "1px solid var(--border)",
-                      color: "var(--text-muted)",
-                      borderRadius: "var(--radius-sm)",
-                      cursor: "pointer",
-                      fontSize: "0.875rem",
-                    }}
-                  >
-                    + Add to list
-                  </button>
-                )}
-
-                {userId && (
-                  <button
+                    type="button"
+                    className="btn-key btn-key--wall"
                     onClick={() => setShowFavModal(true)}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "0.4rem",
-                      padding: "0.6rem 1.25rem",
-                      background: isFavourite ? "var(--accent-dim)" : "transparent",
-                      border: `1px solid ${isFavourite ? "var(--accent)" : "var(--border)"}`,
-                      color: isFavourite ? "var(--accent)" : "var(--text-muted)",
-                      borderRadius: "var(--radius-sm)",
-                      cursor: "pointer",
-                      fontSize: "0.875rem",
-                      fontWeight: isFavourite ? 600 : 400,
-                    }}
+                    aria-pressed={isFavourite}
+                    {...(isFavourite ? { style: { boxShadow: "0 4px 0 var(--bg-inset), inset 0 0 0 1.5px var(--accent)", color: "var(--accent)" } } : {})}
                   >
                     <StarIcon size={15} filled={isFavourite} />
                     {isFavourite ? "Favourited" : "Favourite"}
@@ -391,7 +353,7 @@ export default function GamePage() {
         {/* Friends' ratings strip — hidden entirely when no friends have rated */}
         {userId && friendRatings.length > 0 && (
           <section style={{ marginBottom: "var(--space-7)" }}>
-            <ShelfHeader title="Friends Rated This" count={friendRatings.length} />
+            <ShelfHeader title="Friends rated this" count={friendRatings.length} />
             {(
               <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
                 {friendRatings.map((fr) => (
@@ -502,7 +464,7 @@ export default function GamePage() {
               }}
             >
               <div className="label" style={{ marginBottom: "var(--space-3)" }}>
-                Your Log
+                Your log
               </div>
               <div style={{ marginBottom: "var(--space-3)" }}>
                 <StatusChip status={existingLog.status} />
@@ -587,12 +549,14 @@ export default function GamePage() {
           />
           {reviews.length > 0 ? (
             <div
-              className="stagger"
+              className="paper-wall"
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))",
-                gap: "var(--space-4)",
+                gap: "var(--space-6) var(--space-5)",
                 alignItems: "start",
+                // room for the tape and the corner sticker that overhang each card
+                paddingTop: "var(--space-3)",
               }}
             >
               {reviews.map((r) => (
@@ -637,7 +601,7 @@ export default function GamePage() {
         {/* Similar games */}
         {similarGames.length > 0 && (
           <div style={{ marginTop: "var(--space-8)" }}>
-            <Shelf title="Similar Games" count={similarGames.length} itemWidth={isMobile ? 128 : 150}>
+            <Shelf title="Similar games" count={similarGames.length} itemWidth={isMobile ? 128 : 150}>
               {similarGames.map((g) => (
                 <GameCard key={g.id} game={g} onSelect={(sg) => navigate(`/game/${sg.id}`)} />
               ))}

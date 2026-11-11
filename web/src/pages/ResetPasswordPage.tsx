@@ -68,18 +68,8 @@ export default function ResetPasswordPage() {
           padding: "2rem",
         }}
       >
-        <div
-          className="grad-text"
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "var(--text-2xl)",
-            fontWeight: 600,
-            letterSpacing: "-0.02em",
-            marginBottom: "var(--space-5)",
-            lineHeight: 1,
-          }}
-        >
-          Shelved
+        <div className="wordmark" style={{ marginBottom: "var(--space-5)" }}>
+          <span style={{ fontSize: "1.125rem" }}>Shelved</span>
         </div>
 
         {userId ? (

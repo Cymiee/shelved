@@ -60,7 +60,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ProfileTab>("logs");
-  const [activityLimit, setActivityLimit] = useState(20);
+  // A short preview: the shelf below is the point of the page, and a long
+  // activity wall above it buries it.
+  const [activityLimit, setActivityLimit] = useState(4);
 
   // Edit profile state
   const [editing, setEditing] = useState(false);
@@ -109,7 +111,9 @@ export default function ProfilePage() {
 
         // Fetch IGDB data for logs (for tabs)
         if (gameLogs.length > 0) {
-          const logIds = [...new Set(gameLogs.map((l) => l.game_igdb_id))].slice(0, 50);
+          // 500 is the most IGDB returns per query; spines make a shelf that
+          // size comfortable to show in full.
+          const logIds = [...new Set(gameLogs.map((l) => l.game_igdb_id))].slice(0, 500);
           const logData = await getGames(logIds);
           const lm = new Map<number, IGDBGame>();
           for (const g of logData) lm.set(g.id, g);
@@ -291,12 +295,14 @@ export default function ProfilePage() {
           <h1
             style={{
               fontFamily: "var(--font-display)",
-              fontWeight: 600,
+              fontStretch: "100%",
+              fontWeight: 900,
               fontSize: "var(--text-2xl)",
-              letterSpacing: "-0.015em",
+              letterSpacing: "-0.02em",
               color: "var(--text-primary)",
               marginBottom: "var(--space-2)",
-              lineHeight: 1.2,
+              lineHeight: 1.1,
+              overflowWrap: "anywhere",
             }}
           >
             {profile.username}
@@ -319,10 +325,10 @@ export default function ProfilePage() {
             </p>
           )}
 
-          <p style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", fontVariantNumeric: "tabular-nums" }}>
-            <CountUp value={stats.logged} /> games
-            {stats.avgRating && ` · ${stats.avgRating} avg`}
-            {stats.reviews > 0 && ` · ${stats.reviews} reviews`}
+          <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", fontVariantNumeric: "tabular-nums" }}>
+            <CountUp value={stats.logged} /> {stats.logged === 1 ? "game" : "games"}
+            {stats.avgRating && `, ${stats.avgRating} average`}
+            {stats.reviews > 0 && `, ${stats.reviews} ${stats.reviews === 1 ? "review" : "reviews"}`}
           </p>
         </div>
 
@@ -719,8 +725,17 @@ export default function ProfilePage() {
         {/* Recent Activity */}
         {activities.length > 0 && (
           <section style={{ marginBottom: "2.5rem" }}>
-            <SectionLabel>Recent Activity</SectionLabel>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+            <SectionLabel>Recent activity</SectionLabel>
+            <div
+              className="paper-wall"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 1fr))",
+                gap: "var(--space-6) var(--space-5)",
+                alignItems: "start",
+                paddingTop: "var(--space-3)",
+              }}
+            >
               {activities.slice(0, activityLimit).map((activity) => {
                 const game = activityGames.get(activity.game_igdb_id);
                 if (!game) return null;
@@ -737,19 +752,12 @@ export default function ProfilePage() {
             </div>
             {activities.length > activityLimit && (
               <button
+                type="button"
+                className="btn-key btn-key--wall"
                 onClick={() => setActivityLimit((n) => n + 20)}
-                style={{
-                  marginTop: "0.75rem",
-                  padding: "0.45rem 1rem",
-                  background: "none",
-                  border: "1px solid var(--border)",
-                  color: "var(--text-muted)",
-                  borderRadius: "var(--radius-sm)",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                }}
+                style={{ marginTop: "var(--space-5)" }}
               >
-                Load more
+                Show more activity
               </button>
             )}
           </section>
@@ -772,11 +780,11 @@ export default function ProfilePage() {
                   fontSize: "0.9rem",
                   fontWeight: activeTab === tab ? 600 : 400,
                   marginBottom: -1,
-                  textTransform: "capitalize",
+                  fontFamily: "var(--font-display)",
                   transition: "color 0.15s, border-color 0.15s",
                 }}
               >
-                {tab === "logs" ? `${isOwn ? "Shelf" : `${profile.username}'s Shelf`} (${logs.length})` :
+                {tab === "logs" ? `${isOwn ? "Shelf" : `${profile.username}'s shelf`} (${logs.length})` :
                  tab === "reviews" ? `Reviews (${reviewLogs.length})` : "Lists"}
               </button>
             ))}

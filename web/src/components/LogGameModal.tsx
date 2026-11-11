@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { IGDBGame, GameLogRow, GameStatus } from "@gameboxd/lib";
 import GameCover from "./GameCover";
+import RatingSticker from "./Sticker";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { STATUS_META, STATUS_ORDER } from "../theme";
 
 interface Props {
@@ -11,6 +13,7 @@ interface Props {
 }
 
 export default function LogGameModal({ game, existingLog, onClose, onSave }: Props) {
+  const isMobile = useIsMobile();
   const [status, setStatus] = useState<GameStatus>(existingLog?.status ?? "playing");
   const [rating, setRating] = useState<number | null>(existingLog?.rating ?? null);
   const [review, setReview] = useState(existingLog?.review ?? "");
@@ -24,6 +27,13 @@ export default function LogGameModal({ game, existingLog, onClose, onSave }: Pro
   // Only write hours if the user actually changed the field (preserves exact
   // Steam minutes when they don't touch it).
   const [hoursTouched, setHoursTouched] = useState(false);
+
+  // Escape closes
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const pickStatus = (value: GameStatus) => {
     setStatus(value);
@@ -58,7 +68,7 @@ export default function LogGameModal({ game, existingLog, onClose, onSave }: Pro
       await onSave(status, rating, review.trim() || null, playtimeMin);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      setError(e instanceof Error ? e.message : "Couldn't save your log. Try again.");
     } finally {
       setSaving(false);
     }
@@ -70,80 +80,105 @@ export default function LogGameModal({ game, existingLog, onClose, onSave }: Pro
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "rgba(4, 7, 26, 0.78)",
         display: "flex",
-        alignItems: "center",
+        // A bottom sheet on phones: every control lands within thumb reach
+        alignItems: isMobile ? "flex-end" : "center",
         justifyContent: "center",
-        padding: "1rem",
-        zIndex: 200,
+        padding: isMobile ? 0 : "1rem",
+        zIndex: 300,
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={existingLog ? `Update your log for ${game.name}` : `Log ${game.name}`}
+        className={isMobile ? undefined : "reveal-pop"}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "var(--bg-card)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-lg)",
-          padding: "1.5rem",
-          width: "min(500px, 100%)",
-          maxHeight: "90dvh",
+          border: "1.5px solid var(--border-strong)",
+          borderRadius: isMobile ? "var(--radius-lg) var(--radius-lg) 0 0" : "var(--radius-lg)",
+          ...(isMobile ? { borderBottom: 0, animation: "sheetUp 280ms var(--ease-out) both" } : {}),
+          padding: isMobile ? "1.25rem 16px calc(1.25rem + env(safe-area-inset-bottom))" : "1.5rem",
+          width: isMobile ? "100%" : "min(500px, 100%)",
+          maxHeight: "92dvh",
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
           gap: "1.25rem",
+          boxShadow: "var(--shadow-modal)",
         }}
       >
-        {/* Header */}
-        <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "flex-start" }}>
-          <div style={{ width: 58, flexShrink: 0 }}>
+        {/* Header — the case, with your rating stuck on it as you choose */}
+        <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "center" }}>
+          <div style={{ width: 64, flexShrink: 0 }}>
             <GameCover
               name={game.name}
               imageId={game.cover?.image_id}
               size="cover_small"
               rounding="md"
+              {...(rating != null
+                ? {
+                    badge: (
+                      <RatingSticker
+                        // Re-keyed per value so the slap replays on every change
+                        key={rating}
+                        rating={rating}
+                        size={34}
+                        tilt={10}
+                        slap
+                        style={{ position: "absolute", top: -10, right: -12 }}
+                      />
+                    ),
+                  }
+                : {})}
             />
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <h2
               style={{
                 fontSize: "var(--text-xl)",
-                fontWeight: 600,
+                fontWeight: 800,
                 fontFamily: "var(--font-display)",
-                letterSpacing: "-0.01em",
-                lineHeight: 1.25,
+                lineHeight: 1.15,
+                overflowWrap: "anywhere",
               }}
             >
               {game.name}
             </h2>
-            <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 4 }}>
-              {existingLog ? "Update your log" : "Log this game"}
+            <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", marginTop: 4 }}>
+              {existingLog ? "Update your log" : "Add it to your shelf"}
             </p>
           </div>
         </div>
 
-        {/* Status pills — each carries its own semantic hue */}
+        {/* Status — each one is its own sticker colour */}
         <div>
-          <label className="label" style={{ display: "block", marginBottom: "var(--space-3)" }}>
+          <div className="label" id="log-status-label" style={{ marginBottom: "var(--space-2)" }}>
             Status
-          </label>
-          <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+          </div>
+          <div role="group" aria-labelledby="log-status-label" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
             {STATUS_ORDER.map((value) => {
               const meta = STATUS_META[value];
               const active = status === value;
               return (
                 <button
                   key={value}
+                  type="button"
+                  aria-pressed={active}
                   onClick={() => pickStatus(value)}
                   style={{
-                    padding: "0.4rem 0.95rem",
-                    borderRadius: "var(--radius-full)",
-                    border: `1px solid ${active ? meta.color : "var(--border)"}`,
-                    background: active ? meta.dim : "transparent",
-                    color: active ? meta.color : "var(--text-muted)",
+                    padding: "0.45rem 0.9rem",
+                    borderRadius: "var(--radius-sm)",
+                    border: `1.5px solid ${active ? meta.color : "var(--border-strong)"}`,
+                    background: active ? meta.color : "transparent",
+                    color: active ? "var(--ink)" : "var(--text-secondary)",
                     cursor: "pointer",
+                    fontFamily: "var(--font-display)",
                     fontSize: "var(--text-sm)",
-                    fontWeight: active ? 600 : 400,
-                    transition: "all var(--transition)",
+                    fontWeight: active ? 800 : 600,
+                    transition: "background var(--transition), border-color var(--transition), color var(--transition)",
                   }}
                 >
                   {meta.label}
@@ -153,132 +188,102 @@ export default function LogGameModal({ game, existingLog, onClose, onSave }: Pro
           </div>
         </div>
 
-        {/* Rating row */}
+        {/* Rating — ten dots; the chosen one becomes the sticker */}
         <div>
-          <label className="label" style={{ display: "block", marginBottom: "var(--space-3)" }}>
-            Rating {rating ? `· ${rating}/10` : "· none"}
-          </label>
-          <div style={{ display: "flex", gap: "var(--space-1)", flexWrap: "wrap" }}>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-              <button
-                key={n}
-                onClick={() => pickRating(n)}
-                aria-label={`Rate ${n} out of 10`}
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: "var(--radius-sm)",
-                  border: `1px solid ${rating === n ? "var(--accent)" : "var(--border)"}`,
-                  background: rating === n ? "var(--accent)" : "var(--bg-inset)",
-                  color: rating === n ? "var(--on-accent)" : "var(--text-muted)",
-                  cursor: "pointer",
-                  fontWeight: rating === n ? 600 : 400,
-                  fontSize: "var(--text-sm)",
-                  fontVariantNumeric: "tabular-nums",
-                  transition: "all var(--transition)",
-                }}
-              >
-                {n}
-              </button>
-            ))}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "var(--space-2)" }}>
+            <span className="label" id="log-rating-label">Rating</span>
+            <span style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+              {rating ? `${rating} out of 10` : "Not rated"}
+            </span>
+          </div>
+          <div
+            role="group"
+            aria-labelledby="log-rating-label"
+            style={{ display: "grid", gridTemplateColumns: "repeat(10, minmax(0, 1fr))", gap: 5 }}
+          >
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
+              const active = rating === n;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => pickRating(n)}
+                  aria-label={`Rate ${n} out of 10`}
+                  aria-pressed={active}
+                  style={{
+                    aspectRatio: "1",
+                    minHeight: 30,
+                    borderRadius: "50%",
+                    border: `1.5px solid ${active ? "var(--accent)" : "var(--border-strong)"}`,
+                    background: active ? "var(--accent)" : "var(--bg-inset)",
+                    color: active ? "var(--on-accent)" : "var(--text-secondary)",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: active ? 900 : 700,
+                    fontSize: "var(--text-sm)",
+                    fontVariantNumeric: "tabular-nums",
+                    padding: 0,
+                    transform: active ? "rotate(-8deg) scale(1.12)" : "none",
+                    boxShadow: active ? "0 2px 0 var(--accent-edge)" : "none",
+                    transition: "transform var(--transition), background var(--transition), border-color var(--transition)",
+                  }}
+                >
+                  {n}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Hours played */}
         <div>
-          <label className="label" style={{ display: "block", marginBottom: "var(--space-3)" }}>
+          <label className="label" htmlFor="log-hours" style={{ display: "block", marginBottom: "var(--space-2)" }}>
             Hours played
           </label>
           <input
+            id="log-hours"
+            className="field"
             type="number"
             inputMode="decimal"
             min={0}
             step={0.5}
             value={hours}
             onChange={(e) => { setHours(e.target.value); setHoursTouched(true); }}
-            placeholder="e.g. 42"
-            style={{
-              width: 140,
-              padding: "0.5rem 0.75rem",
-              background: "var(--bg-inset)",
-              border: "1px solid var(--border)",
-              color: "var(--text-primary)",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "var(--text-sm)",
-              outline: "none",
-              fontFamily: "var(--font-body)",
-              fontVariantNumeric: "tabular-nums",
-            }}
+            placeholder="42"
+            style={{ width: 140, padding: "0.5rem 0.75rem", fontVariantNumeric: "tabular-nums" }}
           />
           {existingLog?.playtime_min != null && !existingLog.playtime_manual && (
             <p style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", margin: "0.4rem 0 0" }}>
-              From Steam — edit to include other platforms.
+              Imported from Steam. Edit to include other platforms.
             </p>
           )}
         </div>
 
         {/* Review */}
         <div>
-          <label className="label" style={{ display: "block", marginBottom: "var(--space-3)" }}>
+          <label className="label" htmlFor="log-review" style={{ display: "block", marginBottom: "var(--space-2)" }}>
             Review
           </label>
           <textarea
+            id="log-review"
+            className="field"
             value={review}
             onChange={(e) => setReview(e.target.value)}
             placeholder="What did you think?"
             rows={4}
-            style={{
-              width: "100%",
-              padding: "var(--space-3)",
-              background: "var(--bg-inset)",
-              border: "1px solid var(--border)",
-              color: "var(--text-primary)",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "var(--text-sm)",
-              resize: "vertical",
-              fontFamily: "var(--font-body)",
-              lineHeight: 1.6,
-            }}
+            style={{ width: "100%", padding: "var(--space-3)", resize: "vertical", lineHeight: 1.6 }}
           />
         </div>
 
-        {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)" }}>{error}</p>}
+        {error && <p role="alert" style={{ color: "var(--danger)", fontSize: "var(--text-sm)" }}>{error}</p>}
 
         {/* Actions */}
-        <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "flex-end" }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: "0.6rem 1.25rem",
-              background: "none",
-              border: "1px solid var(--border)",
-              color: "var(--text-secondary)",
-              borderRadius: "var(--radius-sm)",
-              cursor: "pointer",
-              fontSize: "var(--text-sm)",
-            }}
-          >
+        <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "flex-end", paddingBottom: 4 }}>
+          <button type="button" className="btn-key btn-key--wall" onClick={onClose}>
             Cancel
           </button>
-          <button
-            className="press"
-            onClick={handleSave}
-            disabled={saving}
-            style={{
-              padding: "0.6rem 1.5rem",
-              background: "var(--grad-brand)",
-              border: "none",
-              color: "var(--on-accent)",
-              borderRadius: "var(--radius-sm)",
-              cursor: saving ? "not-allowed" : "pointer",
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              opacity: saving ? 0.7 : 1,
-              fontFamily: "var(--font-body)",
-              boxShadow: saving ? "none" : "var(--glow-soft)",
-            }}
-          >
-            {saving ? "Saving..." : existingLog ? "Update log" : "Save to log"}
+          <button type="button" className="btn-key" onClick={handleSave} disabled={saving} style={isMobile ? { flex: 1 } : {}}>
+            {saving ? "Saving…" : existingLog ? "Save changes" : "Log game"}
           </button>
         </div>
       </div>

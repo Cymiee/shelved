@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuthStore } from "../store/auth";
+import { useNotificationsStore } from "../store/notifications";
+import NotificationBadge from "./NotificationBadge";
 import LogSearchModal from "./LogSearchModal";
 import { PlusIcon } from "./icons";
 
@@ -8,17 +10,22 @@ import { PlusIcon } from "./icons";
  * Fixed bottom navigation for mobile. Four destinations at most, with the
  * app's primary action — logging a game — raised in the middle, under the
  * thumb. Auth-only entries are hidden when signed out rather than redirecting.
- * Desktop uses the inline links in Navbar instead.
+ * Your own profile lives in the avatar menu at the top; this bar is for the
+ * places you go, including Friends. Desktop uses the links in Navbar instead.
  */
 export default function BottomNav() {
   const { userId } = useAuthStore();
+  const pendingRequests = useNotificationsStore((s) => s.pendingRequests);
   const [logOpen, setLogOpen] = useState(false);
 
-  const tab = (to: string, label: string, Icon: (p: IconProps) => JSX.Element, end = false) => (
+  const tab = (to: string, label: string, Icon: (p: IconProps) => JSX.Element, end = false, badge = 0) => (
     <NavLink key={to} to={to} end={end} className="tab-link">
       {({ isActive }) => (
         <>
-          <Icon active={isActive} />
+          <span style={{ position: "relative", display: "flex" }}>
+            <Icon active={isActive} />
+            <NotificationBadge count={badge} variant="dot" floating />
+          </span>
           <span style={{ whiteSpace: "nowrap" }}>{label}</span>
         </>
       )}
@@ -52,7 +59,7 @@ export default function BottomNav() {
               <PlusIcon size={24} strokeWidth={2.8} />
             </button>
             {tab("/shelf", "My shelf", ShelfIcon)}
-            {tab(`/profile/${userId}`, "Profile", ProfileIcon)}
+            {tab("/friends", "Friends", FriendsIcon, false, pendingRequests)}
           </>
         )}
       </nav>
@@ -105,11 +112,13 @@ function ShelfIcon({ active }: IconProps) {
   );
 }
 
-function ProfileIcon({ active }: IconProps) {
+function FriendsIcon({ active }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden {...base(active)}>
-      <circle cx="12" cy="8.5" r="3.8" />
-      <path d="M4.8 20c.6-3.6 3.6-5.8 7.2-5.8s6.6 2.2 7.2 5.8" />
+      <circle cx="9" cy="8.5" r="3.4" />
+      <path d="M2.8 19.5c.5-3.2 3-5.1 6.2-5.1s5.7 1.9 6.2 5.1" />
+      <circle cx="17.2" cy="9.5" r="2.6" />
+      <path d="M17.2 14.6c2.2.2 3.7 1.7 4.1 4.1" />
     </svg>
   );
 }

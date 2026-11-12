@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
@@ -8,19 +8,23 @@ import { ensureProfile, getProfileTags } from "@gameboxd/lib";
 import Spinner from "./components/Spinner";
 
 import Layout from "./components/Layout";
-import AuthPage from "./pages/AuthPage";
-import OnboardingPage from "./pages/OnboardingPage";
 import HomePage from "./pages/HomePage";
-import SearchPage from "./pages/SearchPage";
-import ProfilePage from "./pages/ProfilePage";
-import ShelfPage from "./pages/ShelfPage";
-import FriendsPage from "./pages/FriendsPage";
-import GamePage from "./pages/GamePage";
-import ExplorePage from "./pages/ExplorePage";
-import ListPage from "./pages/ListPage";
-import SettingsPage from "./pages/SettingsPage";
-import WantToPlayPage from "./pages/WantToPlayPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ErrorBoundary from "./components/ErrorBoundary";
+
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
+const SearchPage = lazy(() => import("./pages/SearchPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const ShelfPage = lazy(() => import("./pages/ShelfPage"));
+const FeedPage = lazy(() => import("./pages/FeedPage"));
+const StatsPage = lazy(() => import("./pages/StatsPage"));
+const FriendsPage = lazy(() => import("./pages/FriendsPage"));
+const GamePage = lazy(() => import("./pages/GamePage"));
+const ExplorePage = lazy(() => import("./pages/ExplorePage"));
+const ListPage = lazy(() => import("./pages/ListPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const WantToPlayPage = lazy(() => import("./pages/WantToPlayPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 
 /** /games → /explore, preserving any ?q= search term from old links. */
 function LegacyGamesRedirect() {
@@ -116,8 +120,16 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <OnboardingGate />
+      <Suspense
+        fallback={
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+            <Spinner size={44} />
+          </div>
+        }
+      >
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         {/* Landing page for the emailed reset link. The link itself signs the
@@ -148,17 +160,20 @@ export default function App() {
         {/* Protected — redirect to /auth if not logged in */}
         <Route element={userId ? <Layout /> : <Navigate to="/auth" replace />}>
           <Route path="/shelf" element={<ShelfPage />} />
+          <Route path="/feed" element={<FeedPage />} />
+          <Route path="/stats" element={<StatsPage />} />
           <Route path="/friends" element={<FriendsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/want-to-play" element={<WantToPlayPage />} />
         </Route>
 
-        {/* Legacy redirects — keep old links and bookmarks alive */}
-        <Route path="/feed" element={<Navigate to="/" replace />} />
+        {/* Legacy redirect — keep old links and bookmarks alive */}
         <Route path="/games" element={<LegacyGamesRedirect />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }

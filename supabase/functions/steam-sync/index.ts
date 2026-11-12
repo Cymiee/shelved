@@ -75,6 +75,9 @@ Deno.serve(async (req) => {
     const uRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=steam_id`, { headers: restHeaders });
     const steamId = ((await uRes.json()) as { steam_id: string | null }[])[0]?.steam_id;
     if (!steamId) return json({ error: "No Steam account linked." }, 400);
+    // A steamID64 is exactly 17 digits. Anything else must never reach the
+    // Steam API URL below, where it could smuggle in extra query parameters.
+    if (!/^\d{17}$/.test(steamId)) return json({ error: "Your linked Steam account looks invalid. Unlink it and link again." }, 400);
 
     // Owned games + playtime
     const ownedRes = await fetch(
@@ -108,7 +111,10 @@ Deno.serve(async (req) => {
         headers: { ...restHeaders, Prefer: "return=minimal" },
         body: JSON.stringify(group),
       });
-      if (!ins.ok) return json({ error: "Couldn't save your library.", detail: await ins.text() }, 500);
+      if (!ins.ok) {
+        console.error("steam-sync insert failed:", await ins.text());
+        return json({ error: "Couldn't save your library. Try syncing again." }, 500);
+      }
     }
 
     await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
@@ -124,6 +130,7 @@ Deno.serve(async (req) => {
       unmatched: rows.filter((r) => r.game_igdb_id == null).map((r) => r.name).slice(0, 50),
     });
   } catch (err) {
-    return json({ error: String(err) }, 500);
+    console.error("steam-sync failed:", err);
+    return json({ error: "Steam sync failed. Try again shortly." }, 500);
   }
 });

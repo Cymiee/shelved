@@ -163,6 +163,31 @@ export async function getUserByUsername(
   return data;
 }
 
+/**
+ * Find people whose username starts with, or contains, what was typed.
+ * The term goes through PostgREST as a bound value (never spliced into a
+ * filter string), and LIKE wildcards in it are escaped so "%" or "_" match
+ * literally instead of matching everyone.
+ */
+export async function searchUsers(
+  client: SupabaseClient<Database>,
+  term: string,
+  limit = 8
+): Promise<Pick<UserRow, "id" | "username" | "avatar_url" | "bio">[]> {
+  const cleaned = term.trim().slice(0, 40);
+  if (cleaned.length < 2) return [];
+  const pattern = `%${cleaned.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+
+  const { data, error } = await client
+    .from("users")
+    .select("id, username, avatar_url, bio")
+    .ilike("username", pattern)
+    .order("username")
+    .limit(limit);
+  if (error) throw error;
+  return data;
+}
+
 export async function updateProfile(
   client: SupabaseClient<Database>,
   userId: string,

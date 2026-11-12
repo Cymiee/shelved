@@ -19,12 +19,13 @@ export async function upsertGameLog(
     playtimeMin !== undefined ? { playtime_min: playtimeMin, playtime_manual: true } : {};
 
   // Check for existing log to decide insert vs update
-  const { data: existing } = await client
+  const { data: existing, error: existingError } = await client
     .from("game_logs")
     .select("id")
     .eq("user_id", userId)
     .eq("game_igdb_id", gameIgdbId)
     .maybeSingle();
+  if (existingError) throw existingError;
 
   let row: GameLogRow;
 

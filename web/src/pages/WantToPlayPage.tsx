@@ -1,169 +1,138 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { PageSpinner } from "../components/Spinner";
 import type { GameLogRow, IGDBGame } from "@gameboxd/lib";
 import { getUserGameLogs, deleteGameLog } from "@gameboxd/lib";
-import GameCover from "../components/GameCover";
-import { ShelfHeader } from "../components/Shelf";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/auth";
+import { useGamesStore } from "../store/games";
+import { useToastStore } from "../store/toast";
 import { getGames } from "../lib/igdb";
+import { PageSpinner } from "../components/Spinner";
+import LogGameModal from "../components/LogGameModal";
+import WishlistView from "../components/WishlistView";
+import type { WishlistItem } from "../components/WishlistView";
 
+/**
+ * Data and actions for the wishlist; WishlistView draws it.
+ *
+ * Starting or removing a game takes it off the screen immediately and puts it
+ * back if the server refuses, so the page never waits on a round trip.
+ */
 export default function WantToPlayPage() {
-  const { userId } = useAuthStore();
-  const [logs, setLogs] = useState<GameLogRow[]>([]);
-  const [games, setGames] = useState<Map<number, IGDBGame>>(new Map());
+  const userId = useAuthStore((s) => s.userId);
+  const logGame = useGamesStore((s) => s.logGame);
+  const showToast = useToastStore((s) => s.show);
+
+  const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [removing, setRemoving] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<ReadonlySet<number>>(new Set());
+  const [logging, setLogging] = useState<IGDBGame | null>(null);
 
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
 
-    async function load() {
+    (async () => {
       setLoading(true);
+      setError(null);
       try {
-        const allLogs = await getUserGameLogs(supabase, userId!);
-        const wtpLogs = allLogs.filter((l) => l.status === "want_to_play");
+        const allLogs = await getUserGameLogs(supabase, userId);
+        const wishLogs = allLogs.filter((l) => l.status === "want_to_play");
+        const games = wishLogs.length > 0 ? await getGames(wishLogs.map((l) => l.game_igdb_id)) : [];
         if (cancelled) return;
-        setLogs(wtpLogs);
-
-        if (wtpLogs.length > 0) {
-          const ids = wtpLogs.map((l) => l.game_igdb_id);
-          const gameList = await getGames(ids);
-          if (cancelled) return;
-          const map = new Map<number, IGDBGame>();
-          gameList.forEach((g) => map.set(g.id, g));
-          setGames(map);
-        }
+        const byId = new Map(games.map((g) => [g.id, g]));
+        setItems(
+          wishLogs.flatMap((log: GameLogRow) => {
+            const game = byId.get(log.game_igdb_id);
+            return game ? [{ log, game }] : [];
+          }),
+        );
+      } catch {
+        if (!cancelled) setError("Couldn't load your wishlist. Reload to try again.");
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }
+    })();
 
-    load();
     return () => { cancelled = true; };
   }, [userId]);
 
-  const handleRemove = async (gameIgdbId: number) => {
-    if (!userId) return;
-    setRemoving(gameIgdbId);
+  /** Take a game off the list now; put it back where it was if `work` fails. */
+  const leaveList = async (game: IGDBGame, work: () => Promise<void>, done: () => void, failed: string) => {
+    const index = items.findIndex((i) => i.game.id === game.id);
+    const item = items[index];
+    if (!item) return;
+
+    setBusy((prev) => new Set(prev).add(game.id));
+    setItems((prev) => prev.filter((i) => i.game.id !== game.id));
     try {
-      await deleteGameLog(supabase, userId, gameIgdbId);
-      setLogs((prev) => prev.filter((l) => l.game_igdb_id !== gameIgdbId));
+      await work();
+      done();
+    } catch {
+      setItems((prev) => {
+        const next = [...prev];
+        next.splice(Math.min(index, next.length), 0, item);
+        return next;
+      });
+      showToast(failed);
     } finally {
-      setRemoving(null);
+      setBusy((prev) => {
+        const next = new Set(prev);
+        next.delete(game.id);
+        return next;
+      });
     }
   };
 
+  const handleStart = (game: IGDBGame) => {
+    void leaveList(
+      game,
+      async () => {
+        await logGame(game.id, "playing", undefined, undefined, (game.genres ?? []).map((g) => g.id));
+      },
+      () => showToast(`Started ${game.name}`, { to: `/game/${game.id}`, label: "View" }),
+      `Couldn't start ${game.name}. Try again.`,
+    );
+  };
+
+  const handleRemove = (game: IGDBGame) => {
+    if (!userId) return;
+    void leaveList(
+      game,
+      () => deleteGameLog(supabase, userId, game.id),
+      () => showToast(`Removed ${game.name} from your wishlist`),
+      `Couldn't remove ${game.name}. Try again.`,
+    );
+  };
+
   if (loading) return <PageSpinner />;
+  if (error) return <div style={{ padding: "2rem", color: "var(--danger)" }}>{error}</div>;
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "2.5rem clamp(16px, 3vw, 24px)" }}>
-      <ShelfHeader title="Wishlist" count={logs.length} accent="var(--status-wishlist)" />
+    <>
+      <WishlistView items={items} busy={busy} onStart={handleStart} onLog={setLogging} onRemove={handleRemove} />
 
-      {logs.length === 0 ? (
-        <p style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>
-          No games in your backlog yet.{" "}
-          <Link to="/explore" style={{ color: "var(--accent)" }}>
-            Browse games
-          </Link>{" "}
-          and add some!
-        </p>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-          {logs.map((log) => {
-            const game = games.get(log.game_igdb_id);
-            const year = game?.first_release_date
-              ? new Date(game.first_release_date * 1000).getFullYear()
-              : null;
-
-            return (
-              <div
-                key={log.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  // Actions wrap below the title on narrow screens
-                  flexWrap: "wrap",
-                  gap: "var(--space-3) var(--space-4)",
-                  background: "var(--bg-card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-lg)",
-                  padding: "var(--space-3) var(--space-4)",
-                  transition: "border-color var(--transition)",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent-ring)")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
-              >
-                <div style={{ width: 46, flexShrink: 0 }}>
-                  <GameCover
-                    name={game?.name ?? `Game #${log.game_igdb_id}`}
-                    imageId={game?.cover?.image_id}
-                    size="cover_small"
-                    rounding="sm"
-                  />
-                </div>
-
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <Link
-                    to={`/game/${log.game_igdb_id}`}
-                    style={{
-                      color: "var(--text-primary)",
-                      textDecoration: "none",
-                      fontWeight: 600,
-                      fontFamily: "var(--font-display)",
-                      fontSize: "var(--text-base)",
-                      display: "block",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {game?.name ?? `Game #${log.game_igdb_id}`}
-                  </Link>
-                  {year && (
-                    <span style={{ color: "var(--text-muted)", fontSize: "var(--text-xs)", fontVariantNumeric: "tabular-nums" }}>{year}</span>
-                  )}
-                </div>
-
-                <div style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}>
-                  <Link
-                    to={`/game/${log.game_igdb_id}`}
-                    style={{
-                      padding: "0.35rem 0.85rem",
-                      background: "var(--accent)",
-                      color: "var(--on-accent)",
-                      borderRadius: "var(--radius-sm)",
-                      textDecoration: "none",
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Log it
-                  </Link>
-                  <button
-                    onClick={() => handleRemove(log.game_igdb_id)}
-                    disabled={removing === log.game_igdb_id}
-                    style={{
-                      padding: "0.35rem 0.85rem",
-                      background: "var(--bg-base)",
-                      border: "1px solid var(--border)",
-                      color: "var(--text-muted)",
-                      borderRadius: "var(--radius-sm)",
-                      cursor: removing === log.game_igdb_id ? "not-allowed" : "pointer",
-                      fontSize: "0.8rem",
-                      opacity: removing === log.game_igdb_id ? 0.6 : 1,
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
+      {logging && (
+        <LogGameModal
+          game={logging}
+          onClose={() => setLogging(null)}
+          onSave={async (status, rating, review, playtimeMin) => {
+            await logGame(
+              logging.id,
+              status,
+              rating ?? undefined,
+              review ?? undefined,
+              (logging.genres ?? []).map((g) => g.id),
+              playtimeMin,
             );
-          })}
-        </div>
+            // Anything but "Wishlist" means it has left this page.
+            if (status !== "want_to_play") {
+              setItems((prev) => prev.filter((i) => i.game.id !== logging.id));
+            }
+            showToast(`Logged ${logging.name}`, { to: `/game/${logging.id}`, label: "View" });
+          }}
+        />
       )}
-    </div>
+    </>
   );
 }

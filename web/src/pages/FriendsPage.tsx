@@ -1,355 +1,259 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import type { UserRow, FriendshipRow, UserProfileTagsRow } from "@gameboxd/lib";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FriendshipRow, UserProfileTagsRow } from "@gameboxd/lib";
 import {
-  getFriends,
-  getPendingRequests,
+  getFriendships,
   sendFriendRequest,
   acceptFriendRequest,
+  declineFriendRequest,
+  removeFriend,
   getUsersByIds,
-  getUserByUsername,
   getProfileTagsByIds,
-  ARCHETYPES,
-  GENRE_LABELS,
+  searchUsers,
 } from "@gameboxd/lib";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/auth";
 import { useNotificationsStore } from "../store/notifications";
-import Avatar from "../components/Avatar";
+import { useToastStore } from "../store/toast";
+import FriendsView from "../components/FriendsView";
+import type { Person, Relation } from "../components/FriendsView";
 
-const ARCH_BY_ID = new Map<string, (typeof ARCHETYPES)[number]>(ARCHETYPES.map((a) => [a.id, a]));
-const genreLabel = (g: string) => GENRE_LABELS[g as keyof typeof GENRE_LABELS] ?? g;
+const SEARCH_DEBOUNCE_MS = 250;
 
-/** A friend's "vibe": top archetype + a couple genres, plus shared-taste count. */
-function FriendVibe({
-  tags,
-  myTags,
-  bio,
-}: {
-  tags: UserProfileTagsRow | undefined;
-  myTags: UserProfileTagsRow | null;
-  bio: string | null;
-}) {
-  const arch = tags?.archetypes[0] ? ARCH_BY_ID.get(tags.archetypes[0]) : undefined;
-  const genres = (tags?.genres ?? []).slice(0, 2);
-  const shared = myTags && tags
-    ? tags.genres.filter((g) => myTags.genres.includes(g)).length +
-      tags.archetypes.filter((a) => myTags.archetypes.includes(a)).length
-    : 0;
-
-  if (!arch && genres.length === 0) {
-    return bio ? (
-      <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {bio}
-      </p>
-    ) : null;
-  }
-
-  const chip: React.CSSProperties = {
-    padding: "1px 8px",
-    borderRadius: "var(--radius-full)",
-    fontSize: "0.7rem",
-    fontWeight: 600,
-    whiteSpace: "nowrap",
-  };
-
-  return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4, alignItems: "center" }}>
-      {arch && (
-        <span style={{ ...chip, background: "var(--bg-inset)", border: "1px solid var(--border-strong)", color: "var(--text-primary)" }}>
-          {arch.emoji} {arch.label}
-        </span>
-      )}
-      {genres.map((g) => (
-        <span key={g} style={{ ...chip, background: "transparent", border: "1px solid var(--border)", color: "var(--text-secondary)", fontWeight: 500 }}>
-          {genreLabel(g)}
-        </span>
-      ))}
-      {shared > 0 && (
-        <span style={{ ...chip, background: "var(--accent-dim)", border: "1px solid var(--accent-ring)", color: "var(--accent)" }}>
-          ★ {shared} shared
-        </span>
-      )}
-    </div>
-  );
-}
-
-type Tab = "friends" | "pending";
-
+/**
+ * Data and actions for the Friends page; FriendsView draws it.
+ *
+ * Every action updates the screen first and talks to the server second, then
+ * puts things back if the server says no. Waiting on a round trip before
+ * anything moves is what made this page feel unresponsive.
+ */
 export default function FriendsPage() {
-  const { userId } = useAuthStore();
-  const setPending = useNotificationsStore((s) => s.setPending);
-  const [tab, setTab] = useState<Tab>("friends");
-
-  const [friendProfiles, setFriendProfiles] = useState<UserRow[]>([]);
-  const [friendTags, setFriendTags] = useState<Map<string, UserProfileTagsRow>>(new Map());
-  const [pendingRequests, setPendingRequests] = useState<FriendshipRow[]>([]);
-  const [requesterProfiles, setRequesterProfiles] = useState<Map<string, UserRow>>(new Map());
-  const [loading, setLoading] = useState(true);
+  const userId = useAuthStore((s) => s.userId);
   const myTags = useAuthStore((s) => s.profileTags);
+  const setPending = useNotificationsStore((s) => s.setPending);
+  const showToast = useToastStore((s) => s.show);
 
-  const [addUsername, setAddUsername] = useState("");
-  const [addError, setAddError] = useState<string | null>(null);
-  const [addSuccess, setAddSuccess] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [rows, setRows] = useState<FriendshipRow[]>([]);
+  const [people, setPeople] = useState<Map<string, Person>>(new Map());
+  const [tags, setTags] = useState<Map<string, UserProfileTagsRow>>(new Map());
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
 
-  async function loadData() {
-    if (!userId) return;
-    setLoading(true);
-    try {
-      const [friendIds, pending] = await Promise.all([
-        getFriends(supabase, userId),
-        getPendingRequests(supabase, userId),
-      ]);
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState<Person[] | null>(null);
 
-      setFriendProfiles(await getUsersByIds(supabase, friendIds));
+  const otherId = useCallback(
+    (row: FriendshipRow) => (row.requester_id === userId ? row.addressee_id : row.requester_id),
+    [userId],
+  );
 
-      // Each friend's taste tags, for the vibe chips on their card.
-      if (friendIds.length > 0) {
-        const tags = await getProfileTagsByIds(supabase, friendIds);
-        setFriendTags(new Map(tags.map((t) => [t.user_id, t])));
-      } else {
-        setFriendTags(new Map());
-      }
-
-      setPendingRequests(pending);
-      setPending(pending.length); // keep the nav badge in sync
-
-      if (pending.length > 0) {
-        const requesterIds = pending.map((p) => p.requester_id);
-        const requesters = await getUsersByIds(supabase, requesterIds);
-        const m = new Map<string, UserRow>();
-        for (const u of requesters) m.set(u.id, u);
-        setRequesterProfiles(m);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  // ── Load ──
   useEffect(() => {
-    loadData();
-  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleAccept = async (friendship: FriendshipRow) => {
     if (!userId) return;
-    await acceptFriendRequest(supabase, friendship.id, userId);
-    await loadData();
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const friendships = await getFriendships(supabase, userId);
+        const ids = [...new Set(friendships.map((r) => (r.requester_id === userId ? r.addressee_id : r.requester_id)))];
+        const friendIds = friendships
+          .filter((r) => r.status === "accepted")
+          .map((r) => (r.requester_id === userId ? r.addressee_id : r.requester_id));
+
+        const [users, tagRows] = await Promise.all([
+          getUsersByIds(supabase, ids),
+          // Taste tags are decoration on the cards; the page works without them.
+          friendIds.length > 0
+            ? getProfileTagsByIds(supabase, friendIds).catch((): UserProfileTagsRow[] => [])
+            : Promise.resolve<UserProfileTagsRow[]>([]),
+        ]);
+        if (cancelled) return;
+        setRows(friendships);
+        setPeople(new Map(users.map((u) => [u.id, u])));
+        setTags(new Map(tagRows.map((t) => [t.user_id, t])));
+      } catch {
+        if (!cancelled) showToast("Couldn't load your friends. Reload to try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userId, showToast]);
+
+  // ── Derived lists ──
+  const { friends, incoming, sent } = useMemo(() => {
+    const person = (row: FriendshipRow) => people.get(otherId(row));
+    const present = <T,>(value: T | undefined): value is T => value !== undefined;
+    return {
+      friends: rows
+        .filter((r) => r.status === "accepted")
+        .map(person)
+        .filter(present)
+        .sort((a, b) => a.username.localeCompare(b.username))
+        .map((user) => ({ user, tags: tags.get(user.id) })),
+      incoming: rows.filter((r) => r.status === "pending" && r.addressee_id === userId).map(person).filter(present),
+      sent: rows.filter((r) => r.status === "pending" && r.requester_id === userId).map(person).filter(present),
+    };
+  }, [rows, people, tags, userId, otherId]);
+
+  // Keep the nav badge in step with what's on screen.
+  useEffect(() => {
+    if (!loading) setPending(incoming.length);
+  }, [loading, incoming.length, setPending]);
+
+  const rowFor = (otherUserId: string) => rows.find((r) => otherId(r) === otherUserId);
+
+  const relationOf = (otherUserId: string): Relation => {
+    const row = rowFor(otherUserId);
+    if (!row) return "none";
+    if (row.status === "accepted") return "friends";
+    return row.requester_id === userId ? "sent" : "incoming";
   };
 
-  const handleAddFriend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId || !addUsername.trim()) return;
-    setAddError(null);
-    setAddSuccess(null);
-    setAdding(true);
+  const nameOf = (otherUserId: string) => people.get(otherUserId)?.username ?? "them";
+
+  /** Mark someone busy for the length of a request. */
+  const withBusy = async (otherUserId: string, work: () => Promise<void>) => {
+    setBusy((prev) => new Set(prev).add(otherUserId));
     try {
-      const target = await getUserByUsername(supabase, addUsername.trim());
-
-      if (!target) {
-        setAddError(`No user found with username "${addUsername.trim()}"`);
-        return;
-      }
-      if (target.id === userId) {
-        setAddError("You can't add yourself.");
-        return;
-      }
-
-      await sendFriendRequest(supabase, userId, target.id);
-      setAddSuccess(`Friend request sent to ${target.username}!`);
-      setAddUsername("");
-    } catch (e) {
-      setAddError(e instanceof Error ? e.message : "Failed to send request");
+      await work();
     } finally {
-      setAdding(false);
+      setBusy((prev) => {
+        const next = new Set(prev);
+        next.delete(otherUserId);
+        return next;
+      });
     }
   };
 
-  const tabStyle = (t: Tab): React.CSSProperties => ({
-    padding: "0.5rem 1.25rem",
-    background: tab === t ? "var(--accent-dim)" : "none",
-    border: `1px solid ${tab === t ? "var(--accent)" : "var(--border)"}`,
-    color: tab === t ? "var(--accent)" : "var(--text-muted)",
-    borderRadius: "var(--radius-sm)",
-    cursor: "pointer",
-    fontWeight: tab === t ? 600 : 400,
-    fontSize: "0.875rem",
-    transition: "all 0.12s",
-  });
+  // ── Search ──
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) {
+      setResults(null);
+      setSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const found = await searchUsers(supabase, term);
+        if (!cancelled) setResults(found.filter((p) => p.id !== userId));
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query, userId]);
+
+  // ── Actions ──
+  const handleAdd = (person: Person) => {
+    if (!userId) return;
+    void withBusy(person.id, async () => {
+      try {
+        const row = await sendFriendRequest(supabase, userId, person.id);
+        setPeople((prev) => new Map(prev).set(person.id, person));
+        setRows((prev) => [row, ...prev]);
+        showToast(`Request sent to ${person.username}`);
+      } catch {
+        showToast(`Couldn't send a request to ${person.username}. Try again.`);
+      }
+    });
+  };
+
+  const handleAccept = (otherUserId: string) => {
+    const row = rowFor(otherUserId);
+    if (!userId || !row) return;
+    void withBusy(otherUserId, async () => {
+      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, status: "accepted" } : r)));
+      try {
+        await acceptFriendRequest(supabase, row.id, userId);
+        showToast(`You and ${nameOf(otherUserId)} are now friends`, { to: `/profile/${otherUserId}`, label: "View" });
+        // Their taste tags weren't loaded while they were only a request.
+        const [theirTags] = await getProfileTagsByIds(supabase, [otherUserId]).catch((): UserProfileTagsRow[] => []);
+        if (theirTags) setTags((prev) => new Map(prev).set(otherUserId, theirTags));
+      } catch {
+        setRows((prev) => prev.map((r) => (r.id === row.id ? row : r)));
+        showToast(`Couldn't accept ${nameOf(otherUserId)}'s request. Try again.`);
+      }
+    });
+  };
+
+  /** Decline, cancel and unfriend are all "delete this row"; only the wording differs. */
+  const dropRow = (otherUserId: string, remove: (row: FriendshipRow) => Promise<void>, done: string, failed: string) => {
+    const row = rowFor(otherUserId);
+    if (!userId || !row) return;
+    void withBusy(otherUserId, async () => {
+      setRows((prev) => prev.filter((r) => r.id !== row.id));
+      try {
+        await remove(row);
+        showToast(done);
+      } catch {
+        setRows((prev) => [row, ...prev]);
+        showToast(failed);
+      }
+    });
+  };
+
+  const handleDecline = (otherUserId: string) =>
+    dropRow(
+      otherUserId,
+      (row) => declineFriendRequest(supabase, row.id, userId!),
+      `Declined ${nameOf(otherUserId)}'s request`,
+      "Couldn't decline that request. Try again.",
+    );
+
+  const handleCancelRequest = (otherUserId: string) =>
+    dropRow(
+      otherUserId,
+      (row) => removeFriend(supabase, row.id, userId!),
+      `Cancelled your request to ${nameOf(otherUserId)}`,
+      "Couldn't cancel that request. Try again.",
+    );
+
+  const handleRemove = (otherUserId: string) =>
+    dropRow(
+      otherUserId,
+      (row) => removeFriend(supabase, row.id, userId!),
+      `Removed ${nameOf(otherUserId)} from your friends`,
+      `Couldn't remove ${nameOf(otherUserId)}. Try again.`,
+    );
+
+  const handleCopyProfileLink = async () => {
+    if (!userId) return;
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/profile/${userId}`);
+      showToast("Profile link copied");
+    } catch {
+      showToast("Couldn't copy the link. Copy it from your profile page's address bar.");
+    }
+  };
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "2rem clamp(16px, 3vw, 24px)" }}>
-      <h1
-        style={{
-          fontFamily: "var(--font-display)",
-          fontSize: "var(--text-2xl)",
-          fontWeight: 600,
-          letterSpacing: "-0.015em",
-          marginBottom: "var(--space-6)",
-          color: "var(--text-primary)",
-        }}
-      >
-        Friends
-      </h1>
-
-      {/* Add friend */}
-      <form
-        onSubmit={handleAddFriend}
-        style={{
-          display: "flex",
-          gap: "0.5rem",
-          marginBottom: "1.5rem",
-          padding: "1rem",
-          background: "var(--bg-card)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius-lg)",
-        }}
-      >
-        <input
-          value={addUsername}
-          onChange={(e) => setAddUsername(e.target.value)}
-          placeholder="Username to add..."
-          style={{
-            flex: 1,
-            padding: "0.5rem 0.75rem",
-            background: "var(--bg-base)",
-            border: "1px solid var(--border)",
-            color: "var(--text-primary)",
-            borderRadius: "var(--radius-sm)",
-            fontSize: "0.9rem",
-            outline: "none",
-          }}
-        />
-        <button
-          type="submit"
-          disabled={adding}
-          style={{
-            padding: "0.5rem 1.25rem",
-            background: "var(--accent)",
-            border: "none",
-            color: "var(--on-accent)",
-            borderRadius: "var(--radius-sm)",
-            cursor: adding ? "not-allowed" : "pointer",
-            fontWeight: 600,
-            fontSize: "0.875rem",
-            opacity: adding ? 0.7 : 1,
-            fontFamily: "var(--font-body)",
-          }}
-        >
-          Add Friend
-        </button>
-      </form>
-
-      {addError && <p style={{ color: "var(--danger)", marginBottom: "1rem", fontSize: "0.85rem" }}>{addError}</p>}
-      {addSuccess && <p style={{ color: "var(--success)", marginBottom: "1rem", fontSize: "0.85rem" }}>{addSuccess}</p>}
-
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}>
-        <button onClick={() => setTab("friends")} style={tabStyle("friends")}>
-          My Friends ({friendProfiles.length})
-        </button>
-        <button onClick={() => setTab("pending")} style={tabStyle("pending")}>
-          Pending ({pendingRequests.length})
-        </button>
-      </div>
-
-      {loading ? (
-        <p style={{ color: "var(--text-muted)" }}>Loading...</p>
-      ) : tab === "friends" ? (
-        friendProfiles.length === 0 ? (
-          <p style={{ color: "var(--text-muted)" }}>No friends yet. Add some above!</p>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 1fr))", gap: "0.75rem" }}>
-            {friendProfiles.map((u) => (
-              <div
-                key={u.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                  padding: "0.75rem 1rem",
-                  background: "var(--bg-card)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-lg)",
-                  transition: "border-color 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
-              >
-                <Avatar username={u.username} avatarUrl={u.avatar_url} size={38} variant="solid" />
-                <div style={{ flex: 1 }}>
-                  <Link
-                    to={`/profile/${u.id}`}
-                    style={{
-                      fontWeight: 600,
-                      color: "var(--text-primary)",
-                      textDecoration: "none",
-                      fontSize: "0.9rem",
-                    }}
-                  >
-                    {u.username}
-                  </Link>
-                  <FriendVibe tags={friendTags.get(u.id)} myTags={myTags} bio={u.bio} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      ) : (
-        pendingRequests.length === 0 ? (
-          <p style={{ color: "var(--text-muted)" }}>No pending requests.</p>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 1fr))", gap: "0.75rem" }}>
-            {pendingRequests.map((req) => {
-              const requester = requesterProfiles.get(req.requester_id);
-              return (
-                <div
-                  key={req.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                    padding: "0.75rem 1rem",
-                    background: "var(--bg-card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-lg)",
-                  }}
-                >
-                  <Avatar
-                    username={requester?.username ?? "?"}
-                    avatarUrl={requester?.avatar_url ?? null}
-                    size={38}
-                    variant="solid"
-                  />
-                  <div style={{ flex: 1 }}>
-                    <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
-                      {requester?.username ?? req.requester_id}
-                    </span>
-                    <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: 2 }}>
-                      wants to be your friend
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleAccept(req)}
-                    style={{
-                      padding: "0.4rem 1rem",
-                      background: "var(--accent)",
-                      border: "none",
-                      color: "var(--on-accent)",
-                      borderRadius: "var(--radius-sm)",
-                      cursor: "pointer",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Accept
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )
-      )}
-    </div>
+    <FriendsView
+      loading={loading}
+      friends={friends}
+      incoming={incoming}
+      sent={sent}
+      myTags={myTags}
+      query={query}
+      onQueryChange={setQuery}
+      searching={searching}
+      results={results}
+      relationOf={relationOf}
+      busy={busy}
+      onAdd={handleAdd}
+      onAccept={handleAccept}
+      onDecline={handleDecline}
+      onCancelRequest={handleCancelRequest}
+      onRemove={handleRemove}
+      onCopyProfileLink={() => { void handleCopyProfileLink(); }}
+    />
   );
 }

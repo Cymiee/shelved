@@ -49,7 +49,7 @@ export class IGDBClient {
   async searchGames(query: string, limit = 20): Promise<IGDBGame[]> {
     const body = `
       fields ${GAME_FIELDS};
-      search "${query.replace(/"/g, '\\"')}";
+      search "${query.replace(/[\\"]/g, "\\$&")}";
       limit ${limit};
     `;
     const { data } = await this.http.post<IGDBGame[]>("/games", body);

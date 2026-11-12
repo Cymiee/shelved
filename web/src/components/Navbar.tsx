@@ -6,7 +6,8 @@ import { useIsMobile } from "../hooks/useIsMobile";
 import NotificationBadge from "./NotificationBadge";
 import Avatar from "./Avatar";
 import LogSearchModal from "./LogSearchModal";
-import { SearchIcon, CloseIcon, PlusIcon } from "./icons";
+import NavSearch from "./NavSearch";
+import { PlusIcon } from "./icons";
 
 export default function Navbar() {
   const { profile, logout } = useAuthStore();
@@ -14,26 +15,16 @@ export default function Navbar() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // Focus the field the moment the search expands.
-  useEffect(() => {
-    if (searchOpen) searchInputRef.current?.focus();
-  }, [searchOpen]);
-
-  const closeSearch = () => { setSearchOpen(false); setSearchQuery(""); };
 
   const handleLogout = async () => {
     setDropdownOpen(false);
@@ -44,14 +35,6 @@ export default function Navbar() {
     } finally {
       setLoggingOut(false);
     }
-  };
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = searchQuery.trim();
-    if (!q) return;
-    navigate(`/explore?q=${encodeURIComponent(q)}`);
-    closeSearch();
   };
 
   const openDropdown = () => {
@@ -103,46 +86,15 @@ export default function Navbar() {
             <NavLink to="/explore" className="nav-link">Explore</NavLink>
             {profile && <NavLink to="/shelf" className="nav-link">My shelf</NavLink>}
             {profile && (
-              <NavLink to={`/profile/${profile.id}`} className="nav-link">Profile</NavLink>
+              <NavLink to="/friends" className="nav-link" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                Friends
+                <NotificationBadge count={pendingRequests} />
+              </NavLink>
             )}
           </>
         )}
 
-        {/* Collapsible search — expands from the icon; full-width row on mobile */}
-        <form
-          onSubmit={handleSearchSubmit}
-          style={{
-            display: "flex",
-            overflow: "hidden",
-            marginLeft: isMobile ? 0 : "auto",
-            opacity: searchOpen ? 1 : 0,
-            width: isMobile ? (searchOpen ? "100%" : 0) : (searchOpen ? 260 : 0),
-            transition: "width var(--transition-slow), opacity var(--transition-slow)",
-            ...(isMobile && searchOpen ? { order: 10, flexBasis: "100%" } : {}),
-          }}
-        >
-          <input
-            ref={searchInputRef}
-            className="field"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search games"
-            aria-label="Search games"
-            tabIndex={searchOpen ? 0 : -1}
-            // The focus ring is drawn inside so the collapsing form can't clip it
-            style={{ width: "100%", padding: "0.5rem 0.9rem", margin: 3 }}
-          />
-        </form>
-
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label={searchOpen ? "Close search" : "Search"}
-          onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
-          style={{ marginLeft: isMobile ? "auto" : 0 }}
-        >
-          {searchOpen ? <CloseIcon size={18} /> : <SearchIcon size={18} />}
-        </button>
+        <NavSearch isMobile={isMobile} canLog={!!profile} />
 
         {/* The primary action. On mobile it lives in the bottom bar instead,
             under the thumb. */}
@@ -194,10 +146,7 @@ export default function Navbar() {
                 transition: "background 0.15s",
               }}
             >
-              <span style={{ position: "relative", display: "flex", flexShrink: 0 }}>
-                <Avatar username={profile.username} avatarUrl={profile.avatar_url} size={30} variant="solid" />
-                <NotificationBadge count={pendingRequests} floating />
-              </span>
+              <Avatar username={profile.username} avatarUrl={profile.avatar_url} size={30} variant="solid" />
               {!isMobile && (
                 <span style={{ fontSize: "var(--text-sm)", fontWeight: 600 }}>{profile.username}</span>
               )}
@@ -238,11 +187,13 @@ export default function Navbar() {
                 }}
               >
                 {[
-                  // Profile and My shelf live in the primary nav, so the
-                  // dropdown carries only the secondary destinations.
-                  { label: "Wishlist", to: "/want-to-play", badge: 0 },
-                  { label: "Friends", to: "/friends", badge: pendingRequests },
-                  { label: "Settings", to: "/settings", badge: 0 },
+                  // Friends and My shelf are primary destinations (top nav on
+                  // desktop, bottom bar on mobile); the menu under your own
+                  // face holds the things that are about you.
+                  { label: "Profile", to: `/profile/${profile.id}` },
+                  { label: "Wishlist", to: "/want-to-play" },
+                  { label: "Stats", to: "/stats" },
+                  { label: "Settings", to: "/settings" },
                 ].map((item) => (
                   <Link
                     key={item.to}
@@ -252,7 +203,6 @@ export default function Navbar() {
                     onClick={() => setDropdownOpen(false)}
                   >
                     {item.label}
-                    <NotificationBadge count={item.badge} />
                   </Link>
                 ))}
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { GameLogRow, IGDBGame } from "@gameboxd/lib";
 import { getUserGameLogs } from "@gameboxd/lib";
@@ -6,17 +6,9 @@ import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/auth";
 import { getGames } from "../lib/igdb";
 import ShelfLibrary from "../components/ShelfLibrary";
-import GameCover from "../components/GameCover";
-import { CloseIcon } from "../components/icons";
+import { useNextGamePick, NextGamePickPanel } from "../components/NextGamePick";
 import { PageSpinner } from "../components/Spinner";
 import { formatPlaytime } from "../lib/format";
-import { useIsMobile } from "../hooks/useIsMobile";
-
-const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/** How many covers flick past before the picker settles, and how fast. */
-const SHUFFLE_TICKS = 9;
-const SHUFFLE_MS = 85;
 
 /**
  * The signed-in user's working library, at a top-level route. Renders the same
@@ -25,15 +17,10 @@ const SHUFFLE_MS = 85;
  */
 export default function ShelfPage() {
   const { userId } = useAuthStore();
-  const isMobile = useIsMobile();
   const [logs, setLogs] = useState<GameLogRow[]>([]);
   const [games, setGames] = useState<Map<number, IGDBGame>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [pick, setPick] = useState<IGDBGame | null>(null);
-  const [shuffling, setShuffling] = useState(false);
-  const shuffleTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -66,10 +53,6 @@ export default function ShelfPage() {
     return () => { cancelled = true; };
   }, [userId]);
 
-  useEffect(() => () => {
-    if (shuffleTimer.current) clearInterval(shuffleTimer.current);
-  }, []);
-
   // What "next" can be drawn from: the wishlist if there is one, otherwise
   // whatever is already in progress.
   const backlog = useMemo(() => {
@@ -84,29 +67,7 @@ export default function ShelfPage() {
       : { source: "You're already playing this", pool: gamesFor("playing") };
   }, [logs, games]);
 
-  const pickNext = () => {
-    const { pool } = backlog;
-    if (pool.length === 0) return;
-    const draw = () => pool[Math.floor(Math.random() * pool.length)] ?? null;
-
-    if (shuffleTimer.current) clearInterval(shuffleTimer.current);
-    if (reducedMotion || pool.length < 3) {
-      setPick(draw());
-      return;
-    }
-    // Flick through a few covers before settling, like riffling along the shelf.
-    setShuffling(true);
-    let ticks = 0;
-    shuffleTimer.current = setInterval(() => {
-      ticks++;
-      setPick(draw());
-      if (ticks >= SHUFFLE_TICKS && shuffleTimer.current) {
-        clearInterval(shuffleTimer.current);
-        shuffleTimer.current = null;
-        setShuffling(false);
-      }
-    }, SHUFFLE_MS);
-  };
+  const { pick, shuffling, pickNext, clear: clearPick } = useNextGamePick(backlog.pool);
 
   if (loading) return <PageSpinner />;
   if (error) return <div style={{ padding: "2rem", color: "var(--danger)" }}>{error}</div>;
@@ -155,72 +116,27 @@ export default function ShelfPage() {
           )}
         </div>
 
-        {backlog.pool.length > 0 && !pick && (
-          <button type="button" className="btn-key" onClick={pickNext}>
-            Pick my next game
-          </button>
+        {logs.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)" }}>
+            <Link className="btn-key btn-key--wall" to="/stats">See your stats</Link>
+            {backlog.pool.length > 0 && !pick && (
+              <button type="button" className="btn-key" onClick={pickNext}>
+                Pick my next game
+              </button>
+            )}
+          </div>
         )}
       </header>
 
-      {/* The picker's answer */}
       {pick && (
-        <section
-          aria-live="polite"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--space-4)",
-            marginBottom: "var(--space-7)",
-            padding: "var(--space-4)",
-            background: "var(--bg-card)",
-            border: "1.5px solid var(--accent)",
-            borderRadius: "var(--radius-lg)",
-            boxShadow: "var(--shadow-lift)",
-          }}
-        >
-          <div style={{ width: isMobile ? 84 : 104, flexShrink: 0 }}>
-            <GameCover name={pick.name} imageId={pick.cover?.image_id} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p className="label">{shuffling ? "Looking along the shelf…" : "Play this next"}</p>
-            <h2
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "var(--text-2xl)",
-                fontWeight: 900,
-                lineHeight: 1.1,
-                margin: "2px 0 4px",
-                overflowWrap: "anywhere",
-              }}
-            >
-              {pick.name}
-            </h2>
-            <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{backlog.source}</p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginTop: "var(--space-3)" }}>
-              <Link
-                className="btn-key"
-                to={`/game/${pick.id}`}
-                {...(shuffling ? { "aria-disabled": true, style: { pointerEvents: "none", opacity: 0.6 } } : {})}
-              >
-                Open game
-              </Link>
-              {backlog.pool.length > 1 && (
-                <button type="button" className="btn-key btn-key--wall" onClick={pickNext} disabled={shuffling}>
-                  Pick another
-                </button>
-              )}
-            </div>
-          </div>
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Dismiss pick"
-            onClick={() => setPick(null)}
-            style={{ alignSelf: "flex-start" }}
-          >
-            <CloseIcon size={16} />
-          </button>
-        </section>
+        <NextGamePickPanel
+          pick={pick}
+          shuffling={shuffling}
+          source={backlog.source}
+          canRepick={backlog.pool.length > 1}
+          onRepick={pickNext}
+          onDismiss={clearPick}
+        />
       )}
 
       {logs.length === 0 ? (

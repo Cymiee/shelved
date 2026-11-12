@@ -7,6 +7,12 @@ const corsHeaders = {
 // the lists are "trending"/"new releases" style queries, so minutes are fine.
 const RESPONSE_TTL_SECONDS = 600;
 
+// The proxy holds the Twitch credentials, so it only forwards what the app
+// actually uses. Anything else is refused rather than passed along.
+const ALLOWED_ENDPOINTS = new Set(["/games", "/external_games"]);
+// The largest legitimate query is a 500-id lookup (~4 kB). Double that.
+const MAX_BODY_CHARS = 8000;
+
 // Refresh the Twitch token this long before it actually expires.
 const TOKEN_SKEW_SECONDS = 300;
 
@@ -114,11 +120,18 @@ async function mintToken(): Promise<string> {
     throw new Error("Missing IGDB_CLIENT_ID or IGDB_CLIENT_SECRET env vars");
   }
 
-  const res = await fetch(
-    `https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
-    { method: "POST" },
-  );
-  if (!res.ok) throw new Error(`Twitch token fetch failed: ${res.statusText}`);
+  // Credentials go in the POST body, never the URL: a network error's message
+  // can include the URL, and URLs end up in logs.
+  const res = await fetch("https://id.twitch.tv/oauth2/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "client_credentials",
+    }),
+  });
+  if (!res.ok) throw new Error(`Twitch token fetch failed: ${res.status}`);
 
   const json = (await res.json()) as { access_token: string; expires_in: number };
   cacheSet("twitch_token", json.access_token, Math.max(json.expires_in - TOKEN_SKEW_SECONDS, 60));
@@ -138,9 +151,23 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  try {
-    const { endpoint, body } = (await req.json()) as { endpoint: string; body: string };
+  if (req.method !== "POST") return fail(405, "Use POST.");
 
+  let endpoint: unknown;
+  let body: unknown;
+  try {
+    ({ endpoint, body } = (await req.json()) as { endpoint?: unknown; body?: unknown });
+  } catch {
+    return fail(400, "Request body must be JSON.");
+  }
+  if (typeof endpoint !== "string" || !ALLOWED_ENDPOINTS.has(endpoint)) {
+    return fail(400, "That IGDB endpoint isn't available through this proxy.");
+  }
+  if (typeof body !== "string" || body.length === 0 || body.length > MAX_BODY_CHARS) {
+    return fail(400, "Query is missing or too long.");
+  }
+
+  try {
     const cacheKey = `q:${await sha256(`${endpoint}\n${body}`)}`;
     const cached = await cacheGet<unknown>(cacheKey);
     if (cached !== null) {
@@ -172,7 +199,10 @@ Deno.serve(async (req) => {
     }
 
     if (!igdbRes.ok) {
-      throw new Error(`IGDB request failed: ${igdbRes.statusText}`);
+      // A malformed query is the caller's problem; everything else is ours.
+      return igdbRes.status === 400
+        ? fail(400, "IGDB rejected that query.")
+        : fail(502, "Couldn't reach the game database. Try again shortly.");
     }
 
     const data = await igdbRes.json();
@@ -191,9 +221,16 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "MISS" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Log the detail server-side only. Raw error text can carry URLs or
+    // upstream messages that callers have no business seeing.
+    console.error("igdb-proxy failed:", err);
+    return fail(500, "Something went wrong loading game data.");
   }
 });
+
+function fail(status: number, message: string): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}

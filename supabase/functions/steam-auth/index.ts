@@ -19,6 +19,11 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const APP_BASE_URL = Deno.env.get("APP_BASE_URL") ?? "";
 const FUNCTION_URL = `${SUPABASE_URL}/functions/v1/steam-auth`;
 const STATE_TTL_MS = 5 * 60 * 1000;
+const STEAM_OPENID_ENDPOINT = "https://steamcommunity.com/openid/login";
+// Fields Steam must have signed for the assertion to mean anything to us.
+const REQUIRED_SIGNED_FIELDS = ["claimed_id", "identity", "return_to", "response_nonce"];
+
+const callbackUrl = (state: string) => `${FUNCTION_URL}?action=callback&state=${encodeURIComponent(state)}`;
 
 const enc = (s: string) => new TextEncoder().encode(s);
 
@@ -72,7 +77,7 @@ Deno.serve(async (req) => {
       const user = (await ures.json()) as { id: string };
 
       const state = await makeState(user.id);
-      const returnTo = `${FUNCTION_URL}?action=callback&state=${encodeURIComponent(state)}`;
+      const returnTo = callbackUrl(state);
       const params = new URLSearchParams({
         "openid.ns": "http://specs.openid.net/auth/2.0",
         "openid.mode": "checkid_setup",
@@ -81,23 +86,39 @@ Deno.serve(async (req) => {
         "openid.identity": "http://specs.openid.net/auth/2.0/identifier_select",
         "openid.claimed_id": "http://specs.openid.net/auth/2.0/identifier_select",
       });
-      return json({ url: `https://steamcommunity.com/openid/login?${params.toString()}` });
+      return json({ url: `${STEAM_OPENID_ENDPOINT}?${params.toString()}` });
     } catch (err) {
-      return json({ error: String(err) }, 500);
+      console.error("steam-auth login failed:", err);
+      return json({ error: "Couldn't start Steam sign-in. Try again." }, 500);
     }
   }
 
   // ── /callback — Steam redirected the browser back here ──────────────────────
   if (action === "callback") {
     try {
-      const userId = await readState(url.searchParams.get("state"));
-      if (!userId) return appRedirect("error", "expired");
+      const state = url.searchParams.get("state");
+      const userId = await readState(state);
+      if (!userId || !state) return appRedirect("error", "expired");
+
+      // Steam's check_authentication only says "we did sign these fields". It
+      // is on us to check the assertion was issued by Steam, for THIS callback
+      // (not harvested from another site that uses Steam sign-in), and that
+      // the fields we rely on are among the signed ones.
+      const param = (name: string) => url.searchParams.get(`openid.${name}`) ?? "";
+      const signed = param("signed").split(",");
+      if (
+        param("op_endpoint") !== STEAM_OPENID_ENDPOINT ||
+        param("return_to") !== callbackUrl(state) ||
+        !REQUIRED_SIGNED_FIELDS.every((field) => signed.includes(field))
+      ) {
+        return appRedirect("error", "unverified");
+      }
 
       // Verify the OpenID assertion directly with Steam (never trust raw params).
       const body = new URLSearchParams();
       for (const [k, v] of url.searchParams) if (k.startsWith("openid.")) body.set(k, v);
       body.set("openid.mode", "check_authentication");
-      const vres = await fetch("https://steamcommunity.com/openid/login", {
+      const vres = await fetch(STEAM_OPENID_ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body,
@@ -105,8 +126,8 @@ Deno.serve(async (req) => {
       const vtext = await vres.text();
       if (!/is_valid\s*:\s*true/.test(vtext)) return appRedirect("error", "unverified");
 
-      const claimed = url.searchParams.get("openid.claimed_id") ?? "";
-      const steamId = claimed.match(/\/openid\/id\/(\d+)/)?.[1];
+      // Anchored: the whole value must be a Steam identity URL with a steamID64.
+      const steamId = param("claimed_id").match(/^https:\/\/steamcommunity\.com\/openid\/id\/(\d{17})$/)?.[1];
       if (!steamId) return appRedirect("error", "no_steamid");
 
       const patch = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {

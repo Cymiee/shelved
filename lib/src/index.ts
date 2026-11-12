@@ -18,6 +18,7 @@ export {
   ensureProfile,
   getUsersByIds,
   getUserByUsername,
+  searchUsers,
 } from "./supabase/auth.js";
 
 // Game helpers
@@ -36,6 +37,7 @@ export {
   sendFriendRequest,
   acceptFriendRequest,
   getFriends,
+  getFriendships,
   getPendingRequests,
   getFriendshipStatus,
   declineFriendRequest,

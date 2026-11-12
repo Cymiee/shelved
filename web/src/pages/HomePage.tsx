@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import type { IGDBGame, ActivityRow, UserRow, GameLogRow } from "@gameboxd/lib";
-import { getFriendsActivityFeed, getPopularAmongFriends, getUsersByIds, getLogsForPairs, GENRE_IGDB_MAP } from "@gameboxd/lib";
+import type { IGDBGame } from "@gameboxd/lib";
+import { getPopularAmongFriends, GENRE_IGDB_MAP } from "@gameboxd/lib";
 import type { GenreTag } from "@gameboxd/lib";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/auth";
 import { getTrendingGames, getGames, getGame, getNewReleases, getGamesByTags } from "../lib/igdb";
 import GameCard from "../components/GameCard";
-import ActivityCard from "../components/ActivityCard";
+import FriendsActivityWall from "../components/FriendsActivityWall";
 import RecommendationRow from "../components/RecommendationRow";
 import FeaturedHero from "../components/FeaturedHero";
 import HomeHero from "../components/HomeHero";
@@ -19,6 +19,7 @@ import Shelf, { ShelfHeader, ShelfSkeleton } from "../components/Shelf";
 import { useGamesStore } from "../store/games";
 import { useToastStore } from "../store/toast";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useFriendsFeed } from "../hooks/useFriendsFeed";
 import { color, font, space } from "../theme";
 
 // ── Shelf of game covers ─────────────────────────────────────────────────────
@@ -107,50 +108,8 @@ function GetStartedCard({ hasLogs }: { hasLogs: boolean }) {
   );
 }
 
-// ── Friends activity ─────────────────────────────────────────────────────────
-
-interface FeedItem {
-  activity: ActivityRow;
-  user: Pick<UserRow, "id" | "username" | "avatar_url">;
-  game: Pick<IGDBGame, "id" | "name" | "cover">;
-  /** The friend's current log for this game, for up-to-date rating/review. */
-  log: GameLogRow | undefined;
-}
-
-/**
- * Recent friend activity as posts. A wrapping grid rather than a scroll row:
- * a feed is read down, not sideways, and each card now carries the review.
- */
-function FriendsActivity({ items }: { items: FeedItem[] }) {
-  return (
-    <div
-      className="paper-wall"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))",
-        gap: `${space[6]} ${space[5]}`,
-        alignItems: "start",
-        // room for the tape and the corner sticker that overhang each card
-        paddingTop: space[3],
-      }}
-    >
-      {items.map((item) => (
-        <ActivityCard
-          key={item.activity.id}
-          activity={item.activity}
-          user={item.user}
-          game={item.game}
-          log={item.log}
-        />
-      ))}
-    </div>
-  );
-}
-
-// A recent-activity preview, not the full feed. Fetch a small buffer so that
-// items whose game/user fail to resolve don't leave the preview under-filled.
+// A recent-activity preview, not the full feed (that lives at /feed).
 const HOME_ACTIVITY_LIMIT = 6;
-const HOME_ACTIVITY_FETCH = 12;
 
 // ── HomePage ─────────────────────────────────────────────────────────────────
 
@@ -179,8 +138,7 @@ export default function HomePage() {
   const [newReleases, setNewReleases] = useState<IGDBGame[]>([]);
   const [newReleasesLoading, setNewReleasesLoading] = useState(true);
 
-  const [friendsFeed, setFriendsFeed] = useState<FeedItem[]>([]);
-  const [friendsFeedLoading, setFriendsFeedLoading] = useState(false);
+  const { items: friendsFeed, loading: friendsFeedLoading } = useFriendsFeed(userId, HOME_ACTIVITY_LIMIT);
 
   const [popularFriends, setPopularFriends] = useState<IGDBGame[]>([]);
   const [popularFriendsLoading, setPopularFriendsLoading] = useState(false);
@@ -258,49 +216,7 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [seedId]);
 
-  // Friends feed & popular (logged-in only)
-  useEffect(() => {
-    if (!userId) return;
-
-    setFriendsFeedLoading(true);
-    async function loadFriendsFeed() {
-      // Home shows a compact preview of recent activity, not the whole feed —
-      // otherwise the section grows with every friend action and buries the
-      // discovery shelves below it. Fetch a small buffer; render fewer.
-      const feed = await getFriendsActivityFeed(supabase, userId!, HOME_ACTIVITY_FETCH);
-      if (feed.length === 0) { setFriendsFeedLoading(false); return; }
-
-      const uniqueGameIds = [...new Set(feed.map((a) => a.game_igdb_id))];
-      const uniqueUserIds = [...new Set(feed.map((a) => a.user_id))];
-
-      const [igdbGames, userRows, logRows] = await Promise.all([
-        getGames(uniqueGameIds),
-        getUsersByIds(supabase, uniqueUserIds),
-        // Current ratings/reviews. Non-critical: without them cards fall back
-        // to the activity's own metadata.
-        getLogsForPairs(supabase, uniqueUserIds, uniqueGameIds).catch((): GameLogRow[] => []),
-      ]);
-
-      const gameMap = new Map(igdbGames.map((g) => [g.id, g]));
-      const userMap = new Map(userRows.map((u) => [u.id, u]));
-      const logMap = new Map(logRows.map((l) => [`${l.user_id}:${l.game_igdb_id}`, l]));
-
-      const items: FeedItem[] = [];
-      for (const activity of feed) {
-        const user = userMap.get(activity.user_id);
-        const game = gameMap.get(activity.game_igdb_id);
-        if (user && game) {
-          items.push({ activity, user, game, log: logMap.get(`${activity.user_id}:${activity.game_igdb_id}`) });
-        }
-      }
-      setFriendsFeed(items.slice(0, HOME_ACTIVITY_LIMIT));
-    }
-
-    loadFriendsFeed()
-      .catch(() => {})
-      .finally(() => setFriendsFeedLoading(false));
-  }, [userId]);
-
+  // Popular among friends (logged-in only)
   useEffect(() => {
     if (!userId) return;
 
@@ -364,8 +280,12 @@ export default function HomePage() {
                leads instead and the prompt moves underneath. ── */}
         {userId && hasActivity && (
           <section style={{ marginBottom: space[7] }}>
-            <ShelfHeader title="From your friends" count={friendsFeed.length} />
-            <FriendsActivity items={friendsFeed} />
+            <ShelfHeader
+              title="From your friends"
+              count={friendsFeed.length}
+              action={<Link to="/feed" className="nav-link">See all</Link>}
+            />
+            <FriendsActivityWall items={friendsFeed} />
           </section>
         )}
 

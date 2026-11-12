@@ -1,5 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
+import ErrorBoundary from "./ErrorBoundary";
+import { PageSpinner } from "./Spinner";
 import Navbar from "./Navbar";
 import BottomNav from "./BottomNav";
 import Toaster from "./Toaster";
@@ -28,7 +30,11 @@ export default function Layout() {
           ...(isMobile ? { paddingBottom: "calc(58px + env(safe-area-inset-bottom))" } : {}),
         }}
       >
-        <Outlet />
+        <ErrorBoundary resetKey={pathname}>
+          <Suspense fallback={<PageSpinner />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
       </main>
       {isMobile && <BottomNav />}
       <Toaster />

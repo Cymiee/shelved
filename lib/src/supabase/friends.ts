@@ -3,6 +3,18 @@ import type { Database } from "./client.js";
 import type { FriendshipRow, ActivityRow, UserRow } from "../types/index.js";
 import { collapseActivity } from "./activity.js";
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * `.or()` takes a raw filter string, so any id placed in one must be a real
+ * UUID. A value from a URL (e.g. /profile/<anything>) could otherwise add its
+ * own filter clauses.
+ */
+function uuid(value: string): string {
+  if (!UUID.test(value)) throw new Error("Invalid user id");
+  return value;
+}
+
 export async function sendFriendRequest(
   client: SupabaseClient<Database>,
   requesterId: string,
@@ -41,12 +53,30 @@ export async function getFriends(
     .from("friendships")
     .select("requester_id, addressee_id")
     .eq("status", "accepted")
-    .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+    .or(`requester_id.eq.${uuid(userId)},addressee_id.eq.${uuid(userId)}`);
   if (error) throw error;
 
   return data.map((f) =>
     f.requester_id === userId ? f.addressee_id : f.requester_id
   );
+}
+
+/**
+ * Every friendship row the user is part of, in any state: accepted friends,
+ * requests they received and requests they sent. One query for the whole
+ * Friends page; callers split it by status and direction.
+ */
+export async function getFriendships(
+  client: SupabaseClient<Database>,
+  userId: string
+): Promise<FriendshipRow[]> {
+  const { data, error } = await client
+    .from("friendships")
+    .select("*")
+    .or(`requester_id.eq.${uuid(userId)},addressee_id.eq.${uuid(userId)}`)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
 }
 
 export async function getPendingRequests(
@@ -136,8 +166,8 @@ export async function getFriendshipStatus(
     .from('friendships')
     .select('id, requester_id, addressee_id, status')
     .or(
-      `and(requester_id.eq.${userId},addressee_id.eq.${otherUserId}),` +
-      `and(requester_id.eq.${otherUserId},addressee_id.eq.${userId})`,
+      `and(requester_id.eq.${uuid(userId)},addressee_id.eq.${uuid(otherUserId)}),` +
+      `and(requester_id.eq.${uuid(otherUserId)},addressee_id.eq.${uuid(userId)})`,
     )
     .maybeSingle();
   if (error) throw error;
@@ -169,7 +199,7 @@ export async function removeFriend(
     .from('friendships')
     .delete()
     .eq('id', friendshipId)
-    .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+    .or(`requester_id.eq.${uuid(userId)},addressee_id.eq.${uuid(userId)}`);
   if (error) throw error;
 }
 

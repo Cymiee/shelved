@@ -18,3 +18,8 @@ export function timeAgo(dateStr: string): string {
   if (days < 30) return `${days}d ago`;
   return new Date(dateStr).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+
+/** Playtime totals, which can run to thousands of hours: "3,257h". Short spans keep the compact form. */
+export function formatHoursTotal(minutes: number): string {
+  return minutes >= 600 ? `${Math.round(minutes / 60).toLocaleString()}h` : formatPlaytime(minutes);
+}

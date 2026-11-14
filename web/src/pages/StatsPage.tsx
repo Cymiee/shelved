@@ -9,6 +9,7 @@ import { computeShelfStats } from "../lib/stats";
 import type { RankedGame } from "../lib/stats";
 import { formatPlaytime } from "../lib/format";
 import StatsReceipt from "../components/StatsReceipt";
+import ShareReceiptButton from "../components/ShareReceiptButton";
 import GameCover from "../components/GameCover";
 import RatingSticker from "../components/Sticker";
 import { ShelfHeader } from "../components/Shelf";
@@ -59,7 +60,17 @@ export default function StatsPage() {
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "2.5rem clamp(16px, 3vw, 24px) 4rem" }}>
-      <header style={{ marginBottom: "var(--space-6)" }}>
+      <header
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: "var(--space-4)",
+          marginBottom: "var(--space-6)",
+        }}
+      >
+        <div>
         <h1
           style={{
             fontFamily: "var(--font-display)",
@@ -75,6 +86,10 @@ export default function StatsPage() {
         <p style={{ marginTop: "var(--space-2)", color: "var(--text-secondary)" }}>
           Everything on your shelf, rung up.
         </p>
+        </div>
+        {stats.onShelf > 0 && userId && (
+          <ShareReceiptButton username={profile?.username ?? "you"} userId={userId} stats={stats} />
+        )}
       </header>
 
       {stats.onShelf === 0 ? (

@@ -11,9 +11,11 @@
     "dev:web": "npm run dev --workspace=web",
     "build:lib": "npm run build --workspace=lib",
     "build:web": "npm run build --workspace=web",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "typescript": "~5.8.0"
+    "typescript": "~5.8.0",
+    "vitest": "^3.2.7"
   }
 }

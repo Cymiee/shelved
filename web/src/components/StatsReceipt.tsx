@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ShelfStats } from "../lib/stats";
-import { formatPlaytime } from "../lib/format";
+import { formatHoursTotal } from "../lib/format";
 import { color, font } from "../theme";
 
 interface Props {
@@ -10,10 +10,7 @@ interface Props {
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" });
 const HISTOGRAM_BAR_MAX = 72;
-
-/** Totals run into the thousands of hours, so they get separators; short spans keep the compact form. */
-const hours = (minutes: number) =>
-  minutes >= 600 ? `${Math.round(minutes / 60).toLocaleString()}h` : formatPlaytime(minutes);
+const hours = formatHoursTotal;
 
 /**
  * A shelf's totals as a till receipt: line items with dotted leaders, a

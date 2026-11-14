@@ -31,14 +31,15 @@ export default function GenreSelect({ value, onChange }: GenreSelectProps) {
               disabled={disabled}
               onClick={() => toggle(tag)}
               style={{
+                minHeight: 40,
                 padding: "0.5rem 0.95rem",
                 borderRadius: "999px",
-                fontSize: "0.875rem",
-                fontWeight: selected ? 600 : 400,
+                fontSize: "var(--text-sm)",
+                fontWeight: selected ? 700 : 500,
                 fontFamily: "var(--font-body)",
-                background: selected ? "var(--accent)" : "var(--bg-inset)",
+                background: selected ? "var(--accent)" : "var(--bg-card)",
                 color: selected ? "var(--on-accent)" : "var(--text-secondary)",
-                border: `1px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+                border: `1.5px solid ${selected ? "var(--accent)" : "var(--border)"}`,
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.4 : 1,
                 transition: "background 0.12s, border-color 0.12s",
@@ -49,8 +50,8 @@ export default function GenreSelect({ value, onChange }: GenreSelectProps) {
           );
         })}
       </div>
-      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0.85rem 0 0" }}>
-        {value.length}/{MAX_GENRES} selected{atMax ? " · max reached" : ""}
+      <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0.85rem 0 0" }}>
+        {value.length} of {MAX_GENRES} selected{atMax ? ", the most you can pick" : ""}
       </p>
     </div>
   );

@@ -91,7 +91,7 @@ export default function OnboardingPage() {
       if (isLast) finish();
       else goNext();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save. Please try again.");
+      setError(e instanceof Error ? e.message : "Couldn't save your choices. Check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -110,7 +110,7 @@ export default function OnboardingPage() {
       await persist({ onboarding_completed: true });
       finish();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save. Please try again.");
+      setError(e instanceof Error ? e.message : "Couldn't save your choices. Check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -134,46 +134,15 @@ export default function OnboardingPage() {
       }
       finish();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save. Please try again.");
+      setError(e instanceof Error ? e.message : "Couldn't save your choices. Check your connection and try again.");
     } finally {
       setSaving(false);
     }
   }
 
-  const secondaryBtn: React.CSSProperties = {
-    flex: 1,
-    padding: "0.8rem",
-    background: "var(--bg-inset)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border)",
-    borderRadius: "var(--radius-sm)",
-    cursor: saving ? "not-allowed" : "pointer",
-    fontSize: "0.95rem",
-    fontWeight: 600,
-    fontFamily: "var(--font-body)",
-  };
-
-  const primaryBtn: React.CSSProperties = {
-    flex: 1,
-    padding: "0.8rem",
-    background: "var(--grad-brand)",
-    color: "var(--on-accent)",
-    border: "none",
-    borderRadius: "var(--radius-sm)",
-    cursor: !canContinue || saving ? "not-allowed" : "pointer",
-    opacity: !canContinue || saving ? 0.5 : 1,
-    fontSize: "0.95rem",
-    fontWeight: 600,
-    fontFamily: "var(--font-body)",
-    boxShadow: !canContinue || saving ? "none" : "var(--glow-soft)",
-  };
-
   return (
     <div
       style={{
-        position: "relative",
-        overflow: "hidden",
-        isolation: "isolate",
         minHeight: "100vh",
         background: "var(--bg-base)",
         display: "flex",
@@ -182,32 +151,17 @@ export default function OnboardingPage() {
         padding: isMobile ? "1.5rem 1.25rem 2.5rem" : "2.5rem",
       }}
     >
-      <div className="aurora" style={{ zIndex: 0 }} />
       <div
         key={step}
         className="reveal"
-        style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 620, display: "flex", flexDirection: "column", gap: "1.5rem" }}
+        style={{ width: "100%", maxWidth: 620, display: "flex", flexDirection: "column", gap: "1.5rem" }}
       >
         {/* Header: progress + skip all */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
-          <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>
+          <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", fontWeight: 600 }}>
             Step {stepIndex + 1} of {STEPS.length}
           </span>
-          <button
-            type="button"
-            onClick={handleSkipAll}
-            disabled={saving}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--text-secondary)",
-              cursor: saving ? "not-allowed" : "pointer",
-              fontSize: "0.85rem",
-              fontFamily: "var(--font-body)",
-              textDecoration: "underline",
-              padding: 0,
-            }}
-          >
+          <button type="button" className="text-btn" onClick={handleSkipAll} disabled={saving} style={{ fontSize: "var(--text-sm)" }}>
             Skip all
           </button>
         </div>
@@ -221,8 +175,8 @@ export default function OnboardingPage() {
                 flex: 1,
                 height: 5,
                 borderRadius: 999,
-                background: i <= stepIndex ? "var(--grad-brand)" : "var(--border)",
-                transition: "background 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out)",
+                background: i <= stepIndex ? "var(--accent)" : "var(--border)",
+                transition: "background 0.3s var(--ease-out)",
               }}
             />
           ))}
@@ -233,16 +187,17 @@ export default function OnboardingPage() {
           <h1
             style={{
               fontFamily: "var(--font-display)",
+              fontStretch: "104%",
               fontSize: "var(--text-3xl)",
               fontWeight: 900,
               lineHeight: 1.05,
-              letterSpacing: "-0.02em",
+              letterSpacing: "-0.03em",
               margin: "0 0 0.4rem",
             }}
           >
             {copy.title}
           </h1>
-          <p style={{ fontSize: "0.95rem", color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
+          <p style={{ color: "var(--text-secondary)", margin: 0, lineHeight: 1.5 }}>
             {copy.subtitle}
           </p>
         </div>
@@ -254,14 +209,14 @@ export default function OnboardingPage() {
           {step === "archetypes" && <ArchetypeSelect value={archetypes} onChange={setArchetypes} />}
         </div>
 
-        {error && <p style={{ color: "var(--danger)", fontSize: "0.875rem", margin: 0 }}>{error}</p>}
+        {error && <p role="alert" style={{ color: "var(--danger)", fontSize: "var(--text-sm)", margin: 0 }}>{error}</p>}
 
-        {/* Footer: Skip + Continue given equal visual weight (no dark patterns). */}
+        {/* Skip and Continue get equal size so skipping is never buried. */}
         <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
-          <button type="button" className="press" onClick={handleSkipStep} disabled={saving} style={secondaryBtn}>
+          <button type="button" className="btn-key btn-key--wall btn-key--lg" onClick={handleSkipStep} disabled={saving} style={{ flex: 1 }}>
             Skip
           </button>
-          <button type="button" className="press" onClick={handleContinue} disabled={!canContinue || saving} style={primaryBtn}>
+          <button type="button" className="btn-key btn-key--lg" onClick={handleContinue} disabled={!canContinue || saving} style={{ flex: 1 }}>
             {saving ? "Saving…" : isLast ? "Finish" : "Continue"}
           </button>
         </div>

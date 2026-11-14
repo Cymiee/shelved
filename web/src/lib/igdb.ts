@@ -7,10 +7,18 @@ const PROXY_URL = `${SUPABASE_URL}/functions/v1/igdb-proxy`;
 
 export type SortMode = "trending" | "top_rated" | "new_releases";
 
-const GAME_FIELDS =
-  "fields id,name,summary,first_release_date,rating,rating_count,total_rating,total_rating_count,hypes,similar_games," +
+const FIELD_LIST =
+  "id,name,summary,first_release_date,rating,rating_count,total_rating,total_rating_count,hypes,similar_games," +
   "cover.id,cover.image_id,cover.url,genres.id,genres.name,platforms.id,platforms.name,artworks.image_id,screenshots.image_id," +
-  "involved_companies.company.id,involved_companies.company.name,involved_companies.developer;";
+  "involved_companies.company.id,involved_companies.company.name,involved_companies.developer";
+
+const GAME_FIELDS = `fields ${FIELD_LIST};`;
+
+// The game page also needs store links. Kept out of GAME_FIELDS because a
+// game can have dozens of store entries, and every list query would carry them.
+const GAME_DETAIL_FIELDS =
+  `fields ${FIELD_LIST},websites.url,websites.type,` +
+  "external_games.url,external_games.uid,external_games.external_game_source;";
 
 // ── Request cache ────────────────────────────────────────────────────────────
 // Two layers, both keyed by the exact proxy request:
@@ -167,7 +175,7 @@ export async function searchGames(query: string): Promise<IGDBGame[]> {
 }
 
 export async function getGame(id: number): Promise<IGDBGame> {
-  const body = `${GAME_FIELDS} where id = ${id}; limit 1;`;
+  const body = `${GAME_DETAIL_FIELDS} where id = ${id}; limit 1;`;
   const results = await callProxy("/games", body);
   const game = results[0];
   if (!game) throw new Error(`Game ${id} not found`);

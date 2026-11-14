@@ -24,6 +24,8 @@ export default function ReviewCard({ review, game, excerptLength = 220 }: Props)
       status={review.status}
       body={review.review}
       excerptLength={excerptLength}
+      logId={review.id}
+      ownerId={review.user_id}
     />
   );
 }

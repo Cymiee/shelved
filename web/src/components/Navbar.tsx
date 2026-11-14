@@ -12,6 +12,8 @@ import { PlusIcon } from "./icons";
 export default function Navbar() {
   const { profile, logout } = useAuthStore();
   const pendingRequests = useNotificationsStore((s) => s.pendingRequests);
+  const unseenReviews = useNotificationsStore((s) => s.unseenReviews);
+  const bellCount = pendingRequests + unseenReviews;
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -72,7 +74,7 @@ export default function Navbar() {
           alignItems: "center",
           // On mobile the search form wraps onto its own full-width row
           flexWrap: isMobile ? "wrap" : "nowrap",
-          gap: isMobile ? "0.75rem" : "0.5rem",
+          gap: "0.5rem",
         }}
       >
         <Link className="wordmark" to="/" aria-label="Shelved, home" style={{ marginRight: isMobile ? 0 : "0.75rem" }}>
@@ -117,6 +119,21 @@ export default function Navbar() {
             <Link to="/auth" className="nav-link">Log in</Link>
             <Link className="btn-key" to="/auth?mode=signup">Sign up</Link>
           </div>
+        )}
+
+        {profile && (
+          <Link
+            to="/notifications"
+            className="icon-btn"
+            aria-label={bellCount > 0 ? `Notifications, ${bellCount} new` : "Notifications"}
+            style={{ position: "relative", marginLeft: isMobile ? 0 : "0.25rem" }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+            </svg>
+            <NotificationBadge count={bellCount} floating />
+          </Link>
         )}
 
         {/* User dropdown */}

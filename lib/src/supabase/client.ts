@@ -237,6 +237,50 @@ export interface Database {
         };
         Relationships: [];
       };
+      review_likes: {
+        Row: {
+          log_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        // created_at is always the server's: clients have no insert right on it.
+        Insert: {
+          log_id: string;
+          user_id: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      review_comments: {
+        Row: {
+          id: string;
+          log_id: string;
+          user_id: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          log_id: string;
+          user_id: string;
+          body: string;
+        };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      notification_reads: {
+        Row: {
+          user_id: string;
+          seen_at: string;
+        };
+        Insert: {
+          user_id: string;
+          seen_at?: string;
+        };
+        Update: {
+          seen_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -245,6 +289,32 @@ export interface Database {
       import_steam_logs: {
         Args: Record<string, never>;
         Returns: { imported: number; updated: number };
+      };
+      review_engagement: {
+        Args: { log_ids: string[] };
+        Returns: { log_id: string; likes: number; comments: number; liked_by_me: boolean }[];
+      };
+      review_notifications: {
+        Args: { max_rows?: number };
+        Returns: {
+          kind: string;
+          created_at: string;
+          actor_id: string;
+          actor_username: string;
+          actor_avatar_url: string | null;
+          log_id: string;
+          game_igdb_id: number;
+          body: string | null;
+          unseen: boolean;
+        }[];
+      };
+      unseen_review_notification_count: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      mark_review_notifications_seen: {
+        Args: Record<string, never>;
+        Returns: undefined;
       };
     };
   };

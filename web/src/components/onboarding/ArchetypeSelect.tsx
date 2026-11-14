@@ -43,8 +43,8 @@ export default function ArchetypeSelect({ value, onChange }: ArchetypeSelectProp
                 textAlign: "left",
                 padding: "0.9rem 1rem",
                 borderRadius: "var(--radius-md)",
-                background: selected ? "var(--accent-dim)" : "var(--bg-inset)",
-                border: `1px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+                background: selected ? "var(--accent)" : "var(--bg-card)",
+                border: `1.5px solid ${selected ? "var(--accent)" : "var(--border)"}`,
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.4 : 1,
                 transition: "background 0.12s, border-color 0.12s",
@@ -57,14 +57,14 @@ export default function ArchetypeSelect({ value, onChange }: ArchetypeSelectProp
               <span style={{ display: "flex", flexDirection: "column", gap: "0.2rem", minWidth: 0 }}>
                 <span
                   style={{
-                    fontSize: "0.95rem",
-                    fontWeight: 600,
-                    color: selected ? "var(--accent)" : "var(--text-primary)",
+                    fontSize: "var(--text-base)",
+                    fontWeight: 700,
+                    color: selected ? "var(--on-accent)" : "var(--text-primary)",
                   }}
                 >
                   {arch.label}
                 </span>
-                <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.4 }}>
+                <span style={{ fontSize: "var(--text-sm)", color: selected ? "var(--on-accent)" : "var(--text-muted)", lineHeight: 1.4 }}>
                   {arch.description}
                 </span>
               </span>
@@ -72,8 +72,8 @@ export default function ArchetypeSelect({ value, onChange }: ArchetypeSelectProp
           );
         })}
       </div>
-      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0.85rem 0 0" }}>
-        {value.length}/{MAX_ARCHETYPES} selected{atMax ? " · max reached" : ""}
+      <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: "0.85rem 0 0" }}>
+        {value.length} of {MAX_ARCHETYPES} selected{atMax ? ", the most you can pick" : ""}
       </p>
     </div>
   );

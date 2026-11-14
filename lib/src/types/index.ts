@@ -117,6 +117,24 @@ export interface IGDBGame {
   total_rating_count?: number;
   artworks?: { id: number; image_id: string; width?: number; height?: number }[];
   screenshots?: { id: number; image_id: string; width?: number; height?: number }[];
+  /** Official and store pages. Only fetched for a single game (the game page). */
+  websites?: IGDBWebsite[];
+  /** The game's listings on outside services (Steam, Amazon, ...). Single-game fetch only. */
+  external_games?: IGDBExternalGame[];
+}
+
+export interface IGDBWebsite {
+  url: string;
+  /** IGDB website type id (13 = Steam, 17 = GOG, ...). */
+  type?: number;
+}
+
+export interface IGDBExternalGame {
+  url?: string;
+  /** The game's id on that service, e.g. a Steam app id or an Amazon ASIN. */
+  uid?: string;
+  /** IGDB external game source id (1 = Steam, 20 = Amazon, ...). */
+  external_game_source?: number;
 }
 
 export interface IGDBCover {

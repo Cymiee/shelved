@@ -15,7 +15,7 @@ import YourShelfStrip from "../components/YourShelfStrip";
 import CommunityReviews from "../components/CommunityReviews";
 import LogGameModal from "../components/LogGameModal";
 import Spinner from "../components/Spinner";
-import Shelf, { ShelfHeader, ShelfSkeleton } from "../components/Shelf";
+import Shelf, { ShelfError, ShelfHeader, ShelfSkeleton } from "../components/Shelf";
 import { useGamesStore } from "../store/games";
 import { useToastStore } from "../store/toast";
 import { useIsMobile } from "../hooks/useIsMobile";
@@ -24,10 +24,13 @@ import { color, font, space } from "../theme";
 
 // ── Shelf of game covers ─────────────────────────────────────────────────────
 
-function GameShelf({ title, games, loading, onQuickLog }: {
+function GameShelf({ title, games, loading, error, errorMessage, onRetry, onQuickLog }: {
   title: string;
   games: IGDBGame[];
   loading: boolean;
+  error?: boolean;
+  errorMessage?: string;
+  onRetry?: () => void;
   onQuickLog?: (game: IGDBGame) => void;
 }) {
   const navigate = useNavigate();
@@ -35,6 +38,9 @@ function GameShelf({ title, games, loading, onQuickLog }: {
 
   const itemWidth = isMobile ? 128 : 168;
   if (loading) return <ShelfSkeleton title={title} itemWidth={itemWidth} />;
+  if (error && errorMessage && onRetry) {
+    return <ShelfError title={title} message={errorMessage} onRetry={onRetry} />;
+  }
   if (games.length === 0) return null;
 
   return (
@@ -124,6 +130,8 @@ export default function HomePage() {
 
   const [recommended, setRecommended] = useState<IGDBGame[]>([]);
   const [recommendedLoading, setRecommendedLoading] = useState(false);
+  const [recommendedError, setRecommendedError] = useState(false);
+  const [recommendedAttempt, setRecommendedAttempt] = useState(0);
 
   // "Because you loved X" — seeded by the user's highest-rated logged game.
   const [seedGame, setSeedGame] = useState<IGDBGame | null>(null);
@@ -133,15 +141,21 @@ export default function HomePage() {
   // further down shows just the top of it.
   const [trendingAll, setTrendingAll] = useState<IGDBGame[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(true);
+  const [trendingError, setTrendingError] = useState(false);
+  const [trendingAttempt, setTrendingAttempt] = useState(0);
   const trending = trendingAll.slice(0, 7);
 
   const [newReleases, setNewReleases] = useState<IGDBGame[]>([]);
   const [newReleasesLoading, setNewReleasesLoading] = useState(true);
+  const [newReleasesError, setNewReleasesError] = useState(false);
+  const [newReleasesAttempt, setNewReleasesAttempt] = useState(0);
 
   const { items: friendsFeed, loading: friendsFeedLoading } = useFriendsFeed(userId, HOME_ACTIVITY_LIMIT);
 
   const [popularFriends, setPopularFriends] = useState<IGDBGame[]>([]);
   const [popularFriendsLoading, setPopularFriendsLoading] = useState(false);
+  const [popularFriendsError, setPopularFriendsError] = useState(false);
+  const [popularFriendsAttempt, setPopularFriendsAttempt] = useState(0);
 
   const [quickLogGame, setQuickLogGame] = useState<IGDBGame | null>(null);
 
@@ -163,37 +177,70 @@ export default function HomePage() {
 
   // Trending
   useEffect(() => {
-    getTrendingGames()
-      .then(setTrendingAll)
-      .catch(() => {})
-      .finally(() => setTrendingLoading(false));
-  }, []);
+    let cancelled = false;
+    setTrendingLoading(true);
+    setTrendingError(false);
+    (async () => {
+      try {
+        const games = await getTrendingGames();
+        if (!cancelled) setTrendingAll(games);
+      } catch {
+        if (!cancelled) setTrendingError(true);
+      } finally {
+        if (!cancelled) setTrendingLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [trendingAttempt]);
 
   // New releases
   useEffect(() => {
-    getNewReleases(7)
-      .then(setNewReleases)
-      .catch(() => {})
-      .finally(() => setNewReleasesLoading(false));
-  }, []);
+    let cancelled = false;
+    setNewReleasesLoading(true);
+    setNewReleasesError(false);
+    (async () => {
+      try {
+        const games = await getNewReleases(7);
+        if (!cancelled) setNewReleases(games);
+      } catch {
+        if (!cancelled) setNewReleasesError(true);
+      } finally {
+        if (!cancelled) setNewReleasesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [newReleasesAttempt]);
 
   // Genre-based suggestions — driven by onboarding picks PLUS genres learned
   // from games the user has rated highly.
   const suggestionGenres = [...new Set([...(profileTags?.genres ?? []), ...(profileTags?.played_genres ?? [])])];
   const genresKey = suggestionGenres.join(",");
   useEffect(() => {
-    if (!userId || suggestionGenres.length === 0) { setRecommended([]); return; }
+    if (!userId || suggestionGenres.length === 0) {
+      setRecommended([]);
+      setRecommendedError(false);
+      return;
+    }
 
     const genreIds = [...new Set(suggestionGenres.flatMap((g) => GENRE_IGDB_MAP[g as GenreTag]?.genres ?? []))];
     const themeIds = [...new Set(suggestionGenres.flatMap((g) => GENRE_IGDB_MAP[g as GenreTag]?.themes ?? []))];
 
+    let cancelled = false;
     setRecommendedLoading(true);
-    getGamesByTags(genreIds, themeIds, [], 24)
-      .then(setRecommended)
-      .catch(() => {})
-      .finally(() => setRecommendedLoading(false));
+    setRecommendedError(false);
+    (async () => {
+      try {
+        const games = await getGamesByTags(genreIds, themeIds, [], 24);
+        if (!cancelled) setRecommended(games);
+      } catch {
+        if (!cancelled) setRecommendedError(true);
+      } finally {
+        if (!cancelled) setRecommendedLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, genresKey]);
+  }, [userId, genresKey, recommendedAttempt]);
 
   // Seed "Because you loved X" from the user's highest-rated logged game.
   const topRatedLog = [...logs].filter((l) => (l.rating ?? 0) >= 8).sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0];
@@ -220,19 +267,22 @@ export default function HomePage() {
   useEffect(() => {
     if (!userId) return;
 
+    let cancelled = false;
     setPopularFriendsLoading(true);
-    async function loadPopular() {
-      const entries = await getPopularAmongFriends(supabase, userId!);
-      if (entries.length === 0) { setPopularFriendsLoading(false); return; }
-      const ids = entries.map((e) => e.gameIgdbId);
-      const games = await getGames(ids);
-      setPopularFriends(games);
-    }
-
-    loadPopular()
-      .catch(() => {})
-      .finally(() => setPopularFriendsLoading(false));
-  }, [userId]);
+    setPopularFriendsError(false);
+    (async () => {
+      try {
+        const entries = await getPopularAmongFriends(supabase, userId);
+        const games = entries.length > 0 ? await getGames(entries.map((e) => e.gameIgdbId)) : [];
+        if (!cancelled) setPopularFriends(games);
+      } catch {
+        if (!cancelled) setPopularFriendsError(true);
+      } finally {
+        if (!cancelled) setPopularFriendsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userId, popularFriendsAttempt]);
 
   const handleQuickLog = (game: IGDBGame) => setQuickLogGame(game);
   const hasActivity = friendsFeed.length > 0;
@@ -319,11 +369,14 @@ export default function HomePage() {
         {userId && seedGame && seedRecsFresh.length > 0 ? (
           <RecommendationRow seed={seedGame} games={seedRecsFresh} onQuickLog={handleQuickLog} />
         ) : (
-          userId && hasGenres && (recommendedLoading || recommendedFresh.length > 0) && (
+          userId && hasGenres && (recommendedLoading || recommendedError || recommendedFresh.length > 0) && (
             <GameShelf
               title="Based on your genres"
               games={recommendedFresh}
               loading={recommendedLoading}
+              error={recommendedError}
+              errorMessage="Couldn't load your recommendations."
+              onRetry={() => setRecommendedAttempt((n) => n + 1)}
               onQuickLog={handleQuickLog}
             />
           )
@@ -333,6 +386,9 @@ export default function HomePage() {
           title="Trending now"
           games={trending}
           loading={trendingLoading}
+          error={trendingError}
+          errorMessage="Couldn't load trending games."
+          onRetry={() => setTrendingAttempt((n) => n + 1)}
           {...(userId ? { onQuickLog: handleQuickLog } : {})}
         />
 
@@ -340,6 +396,9 @@ export default function HomePage() {
           title="New releases"
           games={newReleases}
           loading={newReleasesLoading}
+          error={newReleasesError}
+          errorMessage="Couldn't load new releases."
+          onRetry={() => setNewReleasesAttempt((n) => n + 1)}
           {...(userId ? { onQuickLog: handleQuickLog } : {})}
         />
 
@@ -348,6 +407,9 @@ export default function HomePage() {
             title="Popular with your friends"
             games={popularFriends}
             loading={popularFriendsLoading}
+            error={popularFriendsError}
+            errorMessage="Couldn't load what your friends are playing."
+            onRetry={() => setPopularFriendsAttempt((n) => n + 1)}
             onQuickLog={handleQuickLog}
           />
         )}

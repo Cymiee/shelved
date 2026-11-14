@@ -19,6 +19,7 @@ const ShelfPage = lazy(() => import("./pages/ShelfPage"));
 const FeedPage = lazy(() => import("./pages/FeedPage"));
 const StatsPage = lazy(() => import("./pages/StatsPage"));
 const FriendsPage = lazy(() => import("./pages/FriendsPage"));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage"));
 const GamePage = lazy(() => import("./pages/GamePage"));
 const ExplorePage = lazy(() => import("./pages/ExplorePage"));
 const ListPage = lazy(() => import("./pages/ListPage"));
@@ -163,6 +164,7 @@ export default function App() {
           <Route path="/feed" element={<FeedPage />} />
           <Route path="/stats" element={<StatsPage />} />
           <Route path="/friends" element={<FriendsPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/want-to-play" element={<WantToPlayPage />} />
         </Route>

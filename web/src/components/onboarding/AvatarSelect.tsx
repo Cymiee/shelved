@@ -36,9 +36,10 @@ export default function AvatarSelect({ value, onChange }: AvatarSelectProps) {
               border: `2px solid ${selected ? "var(--accent)" : "var(--border)"}`,
               borderRadius: "var(--radius-md)",
               cursor: "pointer",
-              transition: "border-color 0.12s, transform 0.12s, box-shadow 0.12s",
+              transition: "border-color 0.12s, transform 0.12s",
               transform: selected ? "scale(1.04)" : "none",
-              boxShadow: selected ? "var(--glow-accent)" : "none",
+              outline: selected ? "3px solid var(--accent)" : "none",
+              outlineOffset: 2,
             }}
           >
             <img

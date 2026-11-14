@@ -17,6 +17,8 @@ import AddToListModal from "../components/AddToListModal";
 import FavouriteModal from "../components/FavouriteModal";
 import GameCard from "../components/GameCard";
 import ReviewCard from "../components/ReviewCard";
+import GameGallery from "../components/GameGallery";
+import WhereToBuy from "../components/WhereToBuy";
 import { StarIcon } from "../components/icons";
 import { useIsMobile } from "../hooks/useIsMobile";
 
@@ -517,6 +519,9 @@ export default function GamePage() {
             </div>
           )}
         </div>
+
+        <GameGallery game={game} />
+        <WhereToBuy game={game} />
 
         {/* ── Community reviews — what people actually said, above the
                catalogue's "more like this". Always rendered: an empty state

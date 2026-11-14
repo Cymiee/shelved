@@ -63,6 +63,26 @@ export {
 } from "./supabase/activity.js";
 export type { ActivityWithUser, TrendingGameEntry, ReviewWithUser } from "./supabase/activity.js";
 
+// Likes, comments and the notifications they produce
+export {
+  REVIEW_COMMENT_MAX,
+  getReviewEngagement,
+  likeReview,
+  unlikeReview,
+  getReviewComments,
+  addReviewComment,
+  deleteReviewComment,
+  getReviewNotifications,
+  getUnseenReviewNotificationCount,
+  markReviewNotificationsSeen,
+} from "./supabase/engagement.js";
+export type {
+  ReviewEngagement,
+  ReviewComment,
+  ReviewCommentWithUser,
+  ReviewNotification,
+} from "./supabase/engagement.js";
+
 // Lists helpers
 export {
   getPopularListsWithMeta,

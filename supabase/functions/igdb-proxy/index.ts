@@ -13,6 +13,12 @@ const ALLOWED_ENDPOINTS = new Set(["/games", "/external_games"]);
 // The largest legitimate query is a 500-id lookup (~4 kB). Double that.
 const MAX_BODY_CHARS = 8000;
 
+// Per-caller rate limit. Generous for people (a busy page load is about ten
+// requests, and a whole household or campus can share one address), tight
+// enough that a script cannot drain the IGDB quota or flood the cache table.
+const RATE_LIMIT = 180;
+const RATE_WINDOW_SECONDS = 60;
+
 // Refresh the Twitch token this long before it actually expires.
 const TOKEN_SKEW_SECONDS = 300;
 
@@ -113,6 +119,88 @@ async function sha256(input: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// ── Rate limiting ────────────────────────────────────────────────────────────
+// Two layers. Each isolate counts in memory and refuses on the spot once a
+// caller passes the limit. Isolates don't share memory, so every request also
+// bumps a shared counter in igdb_cache (one atomic statement, via the
+// bump_igdb_rate SQL function). That write is not awaited — it would add a
+// cross-region round trip to every request — so its answer applies from the
+// caller's next request: once the shared count is over, this isolate blocks
+// them for the rest of the window.
+
+const localCounts = new Map<string, number>();
+const blockedUntil = new Map<string, number>();
+const MAX_TRACKED_CALLERS = 5000;
+
+/** The caller's address as the platform reports it, or null if it doesn't. */
+function clientIp(req: Request): string | null {
+  // Prefer the headers set by the edge network itself over the forwarded
+  // chain, whose first entry a client can influence.
+  const direct = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-real-ip");
+  if (direct) return direct.trim();
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwarded || null;
+}
+
+async function bumpSharedCount(key: string, windowEndsAt: number): Promise<void> {
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/bump_igdb_rate`, {
+      method: "POST",
+      headers: restHeaders,
+      // Kept for two windows so a late prune can't reset a live counter.
+      body: JSON.stringify({ p_key: key, p_window_seconds: RATE_WINDOW_SECONDS * 2 }),
+    });
+    if (!res.ok) return; // e.g. the SQL function isn't installed yet: memory-only limiting
+    const count = (await res.json()) as unknown;
+    if (typeof count === "number" && count > RATE_LIMIT) blockedUntil.set(key, windowEndsAt);
+  } catch {
+    // The shared counter is best-effort; the in-memory one still applies.
+  }
+}
+
+/**
+ * Count this request against its caller. Returns how many seconds to wait if
+ * they are over the limit, or null if the request may proceed. Callers whose
+ * address can't be determined are not limited: refusing everyone because a
+ * header is missing would be worse than the abuse this guards against.
+ */
+async function rateLimit(req: Request): Promise<number | null> {
+  // Our own functions (steam-sync) call with the service key; never limit those.
+  if (SERVICE_ROLE_KEY && req.headers.get("Authorization") === `Bearer ${SERVICE_ROLE_KEY}`) return null;
+
+  const ip = clientIp(req);
+  if (!ip) return null;
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const windowId = Math.floor(nowSeconds / RATE_WINDOW_SECONDS);
+  const windowEndsAt = (windowId + 1) * RATE_WINDOW_SECONDS * 1000;
+  const retryAfter = Math.max(1, (windowId + 1) * RATE_WINDOW_SECONDS - nowSeconds);
+  // Hashed with a server-side secret: raw addresses are never stored.
+  const caller = (await sha256(`${ip}|${SERVICE_ROLE_KEY ?? ""}`)).slice(0, 32);
+  const key = `rl:${caller}:${windowId}`;
+
+  if ((blockedUntil.get(key) ?? 0) > Date.now()) return retryAfter;
+
+  if (localCounts.size > MAX_TRACKED_CALLERS) {
+    // Entries from past windows are dead weight; drop everything not in this one.
+    const suffix = `:${windowId}`;
+    for (const k of localCounts.keys()) if (!k.endsWith(suffix)) localCounts.delete(k);
+    for (const k of blockedUntil.keys()) if (!k.endsWith(suffix)) blockedUntil.delete(k);
+  }
+
+  const count = (localCounts.get(key) ?? 0) + 1;
+  localCounts.set(key, count);
+  if (count > RATE_LIMIT) {
+    blockedUntil.set(key, windowEndsAt);
+    return retryAfter;
+  }
+
+  const shared = bumpSharedCount(key, windowEndsAt);
+  if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(shared);
+  return null;
+}
+
 async function mintToken(): Promise<string> {
   const clientId = Deno.env.get("IGDB_CLIENT_ID");
   const clientSecret = Deno.env.get("IGDB_CLIENT_SECRET");
@@ -152,6 +240,11 @@ Deno.serve(async (req) => {
   }
 
   if (req.method !== "POST") return fail(405, "Use POST.");
+
+  const retryAfter = await rateLimit(req);
+  if (retryAfter !== null) {
+    return fail(429, "Too many requests. Wait a minute and try again.", { "Retry-After": String(retryAfter) });
+  }
 
   let endpoint: unknown;
   let body: unknown;
@@ -228,9 +321,9 @@ Deno.serve(async (req) => {
   }
 });
 
-function fail(status: number, message: string): Response {
+function fail(status: number, message: string, extraHeaders: Record<string, string> = {}): Response {
   return new Response(JSON.stringify({ error: message }), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
   });
 }

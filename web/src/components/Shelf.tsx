@@ -155,6 +155,45 @@ export function ShelfHeader({
 }
 
 /**
+ * Shown in place of a shelf whose request failed, so a failure never looks
+ * like an empty shelf that quietly vanished.
+ */
+export function ShelfError({
+  title,
+  message,
+  onRetry,
+}: {
+  title: string;
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <section style={{ marginBottom: space[7] }}>
+      <ShelfHeader title={title} />
+      <div
+        style={{
+          padding: space[4],
+          border: `1.5px dashed ${color.borderStrong}`,
+          borderRadius: "var(--radius-lg)",
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: space[3],
+        }}
+      >
+        <div role="alert" style={{ color: color.textSecondary, fontSize: "var(--text-sm)" }}>
+          {message}
+        </div>
+        <button type="button" className="btn-key btn-key--wall btn-key--sm" onClick={onRetry}>
+          Try again
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/**
  * Placeholder shelf shown while a row of covers loads. Same header and cover
  * footprint as the real thing, so nothing shifts when the data lands.
  */

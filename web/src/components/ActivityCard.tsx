@@ -12,7 +12,7 @@ interface Props {
    * review then reflect the latest edit rather than the moment the activity
    * was written. Falls back to the activity's own metadata.
    */
-  log?: Pick<GameLogRow, "status" | "rating" | "review"> | undefined;
+  log?: Pick<GameLogRow, "id" | "user_id" | "status" | "rating" | "review"> | undefined;
   /** Characters of review shown before the "Read more" fold. */
   excerptLength?: number;
 }
@@ -62,6 +62,7 @@ export default function ActivityCard({ activity, user, game, log, excerptLength 
       status={activity.type === "topped" ? null : status}
       body={review}
       excerptLength={excerptLength}
+      {...(activity.type !== "topped" && log ? { logId: log.id, ownerId: log.user_id } : {})}
     />
   );
 }

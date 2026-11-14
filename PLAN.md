@@ -1,45 +1,47 @@
 # Shelved: where things stand and what's next
 
-Last updated: 12 November 2026.
+Last updated: 14 November 2026.
 
 Goal: a full-fledged site that is fun to use, secure, and can earn a little money.
 
-## State (checked 12 Nov)
+## State (checked 14 Nov)
 
-- **Live:** everything up to commit `fd5b877` is deployed at https://shelved-one.vercel.app/.
-- **Database:** the security migration `20240101000014_harden_policies.sql` is applied (verified: Steam guard trigger present, friendship rules tightened, length limits on, prune function locked).
-- **Edge functions:** the hardened versions are deployed (`igdb-proxy` v12, `steam-auth` v5, `steam-sync` v5).
-- **Uncommitted in the working tree:** the Stage 1 to 4 and 6 work below. `npm run typecheck`, `npm test` (47 tests) and `npm run build --workspace=web` all pass.
+- **Live:** commit `fd5b877` at https://shelved-one.vercel.app/.
+- **Committed locally, not pushed:** `5cc06b4` (Stages 1 to 6, including likes, comments and notifications). Pushing failed from Claude's environment: `git@github.com: Permission denied (publickey)`. Run `git push origin main` from a machine with GitHub access. Vercel deploys on push.
+- **Database:** the security migration (`...014`) is applied. The two new migrations are **not**:
+  - `20240101000015_review_likes_comments.sql`: likes, comments, notification markers and their functions.
+  - `20240101000016_igdb_rate_limit.sql`: the shared rate-limit counter for the game-data proxy.
+- **Edge functions:** `igdb-proxy` v12 is live without rate limiting; the rate-limited version is in the repo only.
 
-## Done today, not yet committed
+Until migration 015 is applied, the like and comment buttons simply don't appear (the cards hide them when counts can't load), and the notification badge counts friend requests only. Nothing breaks.
 
-| Stage | What | Built by | Checked how |
-|---|---|---|---|
-| 1 | Home shelves show "Couldn't load … Try again" instead of vanishing when a request fails | Sonnet | Code review, typecheck |
-| 2 | Game page: screenshot gallery with a full-screen viewer; "Where to buy" with official store links; affiliate shops that switch on from Vercel settings | Opus | Screenshots desktop and 375px, 7 unit tests |
-| 3 | List page and onboarding restyled | Sonnet | Onboarding screenshot at 375px |
-| 3 | Settings rebuilt: Profile, Taste, Steam, Password sections, each saving on its own; length limits match the database; unlink asks first | Opus | Screenshots desktop and 375px (no saves) |
-| 4 | Stats page "Share receipt": draws the receipt as an image and opens the phone's share sheet (downloads it on desktop) | Opus | Rendered image checked |
-| 6 | Vitest added (dev only), 47 tests, `npm test` in CI | Sonnet | Tests pass; build output has no test code |
-| 6 | Profile page split from 880 to 372 lines; favourite remove button works on touch | Sonnet | Screenshot at 375px |
-| – | Link previews use the real domain | Opus | – |
+## Waiting on you, in this order
 
-Not tested with a real signed-in account: saving in Settings, Steam sync and unlink, list editing, onboarding save, the share sheet on a phone, and everything listed as untested in earlier sessions (friends, wishlist, feed, mobile Log button).
+1. **Push:** `git push origin main`.
+2. **Test the new migrations:** paste `supabase/tests/20240101000015_dry_run.sql` into the Supabase SQL editor and run it. It must end in an error starting `DRY RUN, ROLLED BACK` with only `ok:` entries (30 checks covering who can like, comment, delete and see notifications). Any `FAIL:` means stop. Running it through Claude was declined at the approval prompt twice, so it has never run.
+3. **Apply:** run `supabase/migrations/20240101000015_review_likes_comments.sql`, then `...016_igdb_rate_limit.sql`, in the SQL editor.
+4. **Deploy the proxy (after step 3):** `supabase functions deploy igdb-proxy`.
+5. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
+6. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
+7. **Affiliates:** finish Amazon Associates (Store ID, "Content or Niche Website"), then set `VITE_AMAZON_TAG` and `VITE_AMAZON_DOMAIN` in Vercel and redeploy. Fanatical (Awin) and Humble (Impact) as described below.
 
-## Waiting on you
+### Affiliate values for Vercel
 
-1. **Commit and push** the working tree. Then click through the untested list above on the live site.
-2. **Leaked-password protection** needs the Supabase Pro plan. On the free plan the toggle is unavailable. If you upgrade: Authentication > Providers > Email > "Prevent use of leaked passwords". While there, consider raising the minimum password length to 8; the app's own checks are at 6 and would then be raised to match.
-3. **Affiliate sign-ups**, then add the values in Vercel (Project > Settings > Environment Variables) and redeploy. Shops only appear once their value is set.
-   - `VITE_AMAZON_TAG` (your Associates tracking ID) and `VITE_AMAZON_DOMAIN` (the store you joined, e.g. `amazon.in`, `amazon.com`, `amazon.co.uk`).
-   - `VITE_AFFILIATE_FANATICAL_TEMPLATE`: Fanatical runs through Awin. Format: `https://www.awin1.com/cread.php?awinmid=<Fanatical's merchant id>&awinaffid=<your publisher id>&ued={url}`.
-   - `VITE_AFFILIATE_HUMBLE_TEMPLATE`: Humble runs through Impact. Make a tracking link in Impact, then replace the destination part (the value after `u=`) with `{url}`.
+- `VITE_AFFILIATE_FANATICAL_TEMPLATE`: `https://www.awin1.com/cread.php?awinmid=<Fanatical's merchant id>&awinaffid=<your publisher id>&ued={url}`.
+- `VITE_AFFILIATE_HUMBLE_TEMPLATE`: make a tracking link in Impact, then replace the destination after `u=` with `{url}`.
 
-## Next: Stage 5, likes and comments (left for Fable 5.2)
+## Built (all in `5cc06b4`)
 
-Left for Fable because it adds tables and access rules to the live database, where a mistake leaks or corrupts user data. The prompt to use, as written:
+| Stage | What |
+|---|---|
+| 1 | Home shelves show "Couldn't load … Try again" instead of vanishing |
+| 2 | Game page screenshot gallery and "Where to buy" (official stores now, affiliate shops once configured) |
+| 3 | List, onboarding and Settings restyled; Settings split into four independently saving sections |
+| 4 | "Share receipt" on Stats: an image for the phone share sheet |
+| 5 | Likes and comments on review and activity cards, inline threads, `/notifications` page and navbar bell, proxy rate limiting |
+| 6 | Vitest, 47 tests, CI runs them; Profile page split up |
 
-> Read PLAN.md and CLAUDE.md. Build Stage 5: likes and comments on reviews, which I've approved. Proposed schema: `review_likes (log_id, user_id, created_at)` with one like per person per review, and `review_comments (id, log_id, user_id, body, created_at)` with a length limit; anyone can read, only the author can write or delete their own. Show like and comment counts on every review and activity paper card, with comments opening inline under the card. Count likes and comments on my reviews in the notification badge. Write the migration file, test the row-level security policies in a rolled-back transaction against the live database before applying, and give me the file to run in the SQL editor if applying is declined. Use Sonnet agents for the mechanical UI parts. Then, as a second task, add per-IP rate limiting to the `igdb-proxy` edge function using the existing cache table, and tell me the deploy command. Update PLAN.md when done.
+Not tested with a real signed-in account yet: anything that writes (settings saves, Steam sync, list editing, likes, comments, friends, wishlist actions) and the phone share sheet.
 
 ## After that
 

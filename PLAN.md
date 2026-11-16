@@ -6,7 +6,7 @@ Goal: a full-fledged site that is fun to use, secure, and can earn a little mone
 
 ## State (checked 16 Nov, evening)
 
-- **Built, committed locally, not live:** security leftovers (database-written activity, avatar image hosts, list limits, tighter image policy) and per-profile share previews (`api/share.ts`, a Vercel function using `@vercel/og` 0.11.1; 1.0.x crashes in Node on a missing `hb.wasm`). Migrations `017` and `018` are written and tested only by reading: the rollback-only test was declined at the approval prompt, so run it yourself (below).
+- **Built, committed locally, not live:** security leftovers (database-written activity, avatar image hosts, list limits, tighter image policy) and per-profile share previews (`api/share.ts`, a Vercel function using `@vercel/og` 0.11.1; 1.0.x crashes in Node on a missing `hb.wasm`). Migrations `017` and `018` are written and tested only by reading: on 16 Nov the rollback-only test and the apply of `017` were both declined at the connector's approval prompt, so run them yourself in the SQL editor (below). Checked before trying: the live site's list writes only send `user_id`, `title`, `description`, so `017` is safe while the old site is up.
 - **Live:** `5cc06b4` (Stages 1 to 6) is pushed and deploys from GitHub to https://shelved-one.vercel.app/.
 - **Database:** all migrations through `20240101000016` are applied. The likes and comments rules were tested first with `supabase/tests/20240101000015_dry_run.sql` (30 of 30 checks ok), then applied on 16 Nov and verified: row-level security on all three new tables, visitors can read counts but not notifications, only the edge function can call the rate counter.
 - **Edge functions:** `igdb-proxy` v13 (rate limited, 180 requests a minute per address) deployed 16 Nov and smoke-tested: game queries work, cache hits work, unknown endpoints are refused, the shared counter counts. Deployed through the Supabase connector; it needs `import_map_path: "deno.json"` set explicitly or the upload fails.
@@ -23,8 +23,8 @@ The security fixes have to go out in this order, because the live site still wri
 6. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
 7. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
 8. **Affiliates** (set in Vercel > Project > Settings > Environment Variables; these are build-time values, so they take effect on the next deploy):
-   - **Amazon (approved, Amazon UAE):** `VITE_AMAZON_TAG` = `shelved0d-21`, `VITE_AMAZON_DOMAIN` = `amazon.ae`. Not set in Vercel yet.
-   - **Fanatical (applied 16 Nov via Awin, waiting for approval):** Awin publisher ID `3157488`, Fanatical's Awin merchant ID `118821`. Once Awin shows the programme as joined, set `VITE_AFFILIATE_FANATICAL_TEMPLATE` = `https://www.awin1.com/cread.php?awinmid=118821&awinaffid=3157488&ued={url}`. Don't set it before approval: links for a programme you haven't joined don't earn.
+   - **Amazon (approved, Amazon UAE):** `VITE_AMAZON_TAG` = `shelved0d-21`, `VITE_AMAZON_DOMAIN` = `amazon.ae`. **Set in Vercel (Production only) on 16 Nov**; live from the next deploy.
+   - **Fanatical (applied 16 Nov via Awin, waiting for approval):** Awin publisher ID `3157488`, Fanatical's Awin merchant ID `118821`. You log in to Awin (ui.awin.com), not Fanatical: Advertisers > My Programmes shows Fanatical under Joined once approved. Then set `VITE_AFFILIATE_FANATICAL_TEMPLATE` = `https://www.awin1.com/cread.php?awinmid=118821&awinaffid=3157488&ued={url}`. Don't set it before approval: links for a programme you haven't joined don't earn.
    - **Humble:** skipped; the owner believes the partner programme is discontinued. The code still supports `VITE_AFFILIATE_HUMBLE_TEMPLATE` if it comes back.
 
 ### Affiliate values for Vercel

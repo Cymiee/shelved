@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./client.js";
-import type { GameLogRow, GameStatus, TopGameRow, ActivityType } from "../types/index.js";
+import type { GameLogRow, GameStatus, TopGameRow } from "../types/index.js";
 
 export async function upsertGameLog(
   client: SupabaseClient<Database>,
@@ -48,16 +48,7 @@ export async function upsertGameLog(
     row = data;
   }
 
-  // Record activity. The review text rides along in metadata so the feed can
-  // show what was said without a second lookup.
-  const activityType: ActivityType = review ? "reviewed" : rating != null ? "rated" : "logged";
-  const { error: activityError } = await client.from("activity").insert({
-    user_id: userId,
-    type: activityType,
-    game_igdb_id: gameIgdbId,
-    metadata: { status, rating: rating ?? null, review: review ?? null },
-  });
-  if (activityError) throw activityError;
+  // Activity is written by a database trigger (migration 017).
 
   return row;
 }
@@ -119,13 +110,7 @@ export async function setTopGame(
     .upsert({ user_id: userId, position, game_igdb_id: gameIgdbId });
   if (error) throw error;
 
-  const { error: activityError } = await client.from("activity").insert({
-    user_id: userId,
-    type: "topped",
-    game_igdb_id: gameIgdbId,
-    metadata: { position },
-  });
-  if (activityError) throw activityError;
+  // Activity is written by a database trigger (migration 017).
 }
 
 export async function deleteGameLog(

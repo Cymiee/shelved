@@ -11,11 +11,15 @@
     "dev:web": "npm run dev --workspace=web",
     "build:lib": "npm run build --workspace=lib",
     "build:web": "npm run build --workspace=web",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "vitest run"
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p api",
+    "test": "vitest run",
+    "typecheck:api": "tsc -p api"
   },
   "devDependencies": {
     "typescript": "~5.8.0",
     "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "@vercel/og": "0.11.1"
   }
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isAllowedAvatarUrl, AVATAR_URL_ERROR } from "@gameboxd/lib";
 
 interface EditProfileFormProps {
   initialBio: string;
@@ -12,6 +13,17 @@ interface EditProfileFormProps {
 export default function EditProfileForm({ initialBio, initialAvatarUrl, saving, onSave, onCancel }: EditProfileFormProps) {
   const [bio, setBio] = useState(initialBio);
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = () => {
+    const url = avatarUrl.trim();
+    if (url && !isAllowedAvatarUrl(url)) {
+      setError(AVATAR_URL_ERROR);
+      return;
+    }
+    setError(null);
+    onSave({ bio, avatarUrl: url });
+  };
 
   return (
     <div
@@ -47,12 +59,16 @@ export default function EditProfileForm({ initialBio, initialAvatarUrl, saving, 
           placeholder="https://..."
           style={{ width: "100%", padding: "0.5rem 0.7rem" }}
         />
+        <p style={{ color: "var(--text-muted)", fontSize: "var(--text-sm)", margin: "4px 0 0" }}>
+          Imgur, GitHub, Discord, Steam, Gravatar, Google or X links only.
+        </p>
+        {error && <p style={{ color: "var(--danger)", fontSize: "var(--text-sm)", margin: "4px 0 0" }}>{error}</p>}
       </div>
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <button
           type="button"
           className="btn-key btn-key--sm"
-          onClick={() => onSave({ bio, avatarUrl })}
+          onClick={handleSave}
           disabled={saving}
         >
           {saving ? "Saving..." : "Save"}

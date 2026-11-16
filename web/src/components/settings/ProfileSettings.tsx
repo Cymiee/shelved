@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { updateProfile } from "@gameboxd/lib";
+import { updateProfile, isAllowedAvatarUrl, AVATAR_URL_ERROR } from "@gameboxd/lib";
 import { supabase } from "../../lib/supabase";
 import { useAuthStore } from "../../store/auth";
 import { useToastStore } from "../../store/toast";
@@ -33,8 +33,8 @@ export default function ProfileSettings() {
       setError("Add a username so people can find you.");
       return;
     }
-    if (url && !url.startsWith("https://")) {
-      setError("The avatar link must start with https://.");
+    if (url && !isAllowedAvatarUrl(url)) {
+      setError(AVATAR_URL_ERROR);
       return;
     }
     setSaving(true);
@@ -84,7 +84,7 @@ export default function ProfileSettings() {
         <Field
           label="Avatar image link"
           htmlFor="settings-avatar"
-          hint="Optional. Leave it empty to use the avatar you picked under Taste."
+          hint="Optional. Imgur, GitHub, Discord, Steam, Gravatar, Google or X links only. Leave it empty to use the avatar you picked under Taste."
         >
           <input
             id="settings-avatar"

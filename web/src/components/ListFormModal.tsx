@@ -82,6 +82,7 @@ export default function ListFormModal({ initial, onClose, onSave }: Props) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Cozy games for winter"
+            maxLength={100}
             autoFocus
             style={fieldStyle}
           />
@@ -95,6 +96,7 @@ export default function ListFormModal({ initial, onClose, onSave }: Props) {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What ties these games together?"
+            maxLength={1000}
             rows={3}
             style={{ ...fieldStyle, resize: "vertical", fontFamily: "var(--font-body)", lineHeight: 1.6 }}
           />

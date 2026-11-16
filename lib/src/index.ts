@@ -5,6 +5,9 @@ export * from "./types/index.js";
 export { getSupabaseClient } from "./supabase/client.js";
 export type { Database, SupabaseClient } from "./supabase/client.js";
 
+// Avatar URL rules
+export { AVATAR_IMAGE_HOSTS, AVATAR_URL_ERROR, isAllowedAvatarUrl } from "./constants/avatars.js";
+
 // Auth helpers
 export {
   signUp,

@@ -6,21 +6,17 @@ Goal: a full-fledged site that is fun to use, secure, and can earn a little mone
 
 ## State (checked 16 Nov, late evening)
 
-- **Live:** everything through the security leftovers and per-profile share previews is pushed and deployed. Verified: the live bundle no longer writes activity from the browser and checks avatar hosts.
-- **Share previews broke on deploy** (`ERR_REQUIRE_ESM`: Vercel compiled `api/share.ts` to CommonJS, and `@vercel/og` is ES-module-only). Fixed by `api/package.json` with `"type": "module"`; tested locally as an unbundled ES module (HTML 200, image 200). **Needs a push.**
-- **Database:** migrations through `017` applied (017 run by the owner in the SQL editor on 16 Nov after the dry run passed 16/16; verified via connector: both activity triggers, all three new constraints, Steam import skips the feed). The dry run caught a bug first: Postgres regexes can't repeat more than 255 times, so the avatar URL length limit is a separate `char_length` check.
-- **`018` not applied yet**, but now safe: the live site no longer inserts activity.
-- **Supabase connector:** reads work, but `execute_sql` and `apply_migration` are declined in the 16 Nov session even after the owner allowed them in Claude Code and on claude.ai. Expect a fresh session to pick up the claude.ai setting.
-- **Edge functions:** `igdb-proxy` v13 (rate limited, 180 requests a minute per address), deployed 16 Nov. Deploys through the connector need `import_map_path: "deno.json"`.
+- **Live and verified:** everything through the security leftovers and per-profile share previews. The live bundle reads activity only and checks avatar hosts; Amazon UAE links carry the `shelved0d-21` tag.
+- **Share previews work:** a bot fetching `/profile/<id>` gets title, description and an `og:image`; the 1200x630 image renders (about 3.6 s cold, then cached). Fix that made it work on Vercel: `api/package.json` with `"type": "module"` (otherwise `ERR_REQUIRE_ESM` on `@vercel/og`).
+- **Database:** all migrations through `018` applied. Verified: activity triggers in place, no browser insert policy or insert right on `activity`, avatar host and list limits on. The 017 dry run caught a bug first: Postgres regexes can't repeat more than 255 times, so the avatar URL length limit is a separate `char_length` check.
+- **Supabase connector:** reads work; `execute_sql` and `apply_migration` were declined in the 16 Nov session even after the owner allowed them in Claude Code and on claude.ai, so the owner ran 017/018 in the SQL editor. Try the connector again in a fresh session.
+- **Edge functions:** `igdb-proxy` v13 (rate limited, 180 requests a minute per address). Deploys through the connector need `import_map_path: "deno.json"`.
 
 ## Waiting on you, in this order
 
-1. **Apply `20240101000018_activity_server_only.sql`** (safe now; removes the browser's right to write activity).
-2. **Push** the share-preview fix (`git push origin main`).
-3. **Check share previews:** paste a profile link into Discord, WhatsApp or X; it should show that person's name, stats and favourite covers. Or run `curl -A "Discordbot" https://shelved-one.vercel.app/profile/<id>`, which should return a short page whose `og:image` points at `/api/share?...&image=1`.
-4. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
-5. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
-6. **Affiliates** (set in Vercel > Project > Settings > Environment Variables; these are build-time values, so they take effect on the next deploy):
+1. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
+2. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
+3. **Affiliates** (set in Vercel > Project > Settings > Environment Variables; these are build-time values, so they take effect on the next deploy):
    - **Amazon (approved, Amazon UAE):** `VITE_AMAZON_TAG` = `shelved0d-21`, `VITE_AMAZON_DOMAIN` = `amazon.ae`. **Set in Vercel (Production only) on 16 Nov** and included in the 16 Nov deploy.
    - **Fanatical (applied 16 Nov via Awin; "Fanatical Global" shows under Pending as of 16 Nov; completing the Awin profile helps approval):** Awin publisher ID `3157488`, Fanatical's Awin merchant ID `118821`. You log in to Awin (ui.awin.com), not Fanatical: Advertisers > My Programmes shows Fanatical under Joined once approved. Then set `VITE_AFFILIATE_FANATICAL_TEMPLATE` = `https://www.awin1.com/cread.php?awinmid=118821&awinaffid=3157488&ued={url}`. Don't set it before approval: links for a programme you haven't joined don't earn.
    - **Humble:** skipped; the owner believes the partner programme is discontinued. The code still supports `VITE_AFFILIATE_HUMBLE_TEMPLATE` if it comes back.

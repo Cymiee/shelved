@@ -8,14 +8,13 @@ Goal: a full-fledged site that is fun to use, secure, and can earn a little mone
 
 - **Live:** `5cc06b4` (Stages 1 to 6) is pushed and deploys from GitHub to https://shelved-one.vercel.app/.
 - **Database:** all migrations through `20240101000016` are applied. The likes and comments rules were tested first with `supabase/tests/20240101000015_dry_run.sql` (30 of 30 checks ok), then applied on 16 Nov and verified: row-level security on all three new tables, visitors can read counts but not notifications, only the edge function can call the rate counter.
-- **Edge functions:** `igdb-proxy` v12 is live without rate limiting. The rate-limited version is in the repo and needs deploying (step 1 below).
+- **Edge functions:** `igdb-proxy` v13 (rate limited, 180 requests a minute per address) deployed 16 Nov and smoke-tested: game queries work, cache hits work, unknown endpoints are refused, the shared counter counts. Deployed through the Supabase connector; it needs `import_map_path: "deno.json"` set explicitly or the upload fails.
 
 ## Waiting on you, in this order
 
-1. **Deploy the proxy:** `supabase functions deploy igdb-proxy`.
-2. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
-3. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
-4. **Affiliates:** finish Amazon Associates (Store ID, "Content or Niche Website"), then set `VITE_AMAZON_TAG` and `VITE_AMAZON_DOMAIN` in Vercel and redeploy. Fanatical (Awin) and Humble (Impact) as described below.
+1. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
+2. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
+3. **Affiliates:** finish Amazon Associates (Store ID, "Content or Niche Website"), then set `VITE_AMAZON_TAG` and `VITE_AMAZON_DOMAIN` in Vercel and redeploy. Fanatical (Awin) and Humble (Impact) as described below.
 
 ### Affiliate values for Vercel
 

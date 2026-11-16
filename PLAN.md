@@ -1,29 +1,27 @@
 # Shelved: where things stand and what's next
 
-Last updated: 16 November 2026 (evening).
+Last updated: 16 November 2026 (late evening).
 
 Goal: a full-fledged site that is fun to use, secure, and can earn a little money.
 
-## State (checked 16 Nov, evening)
+## State (checked 16 Nov, late evening)
 
-- **Built, committed locally, not live:** security leftovers (database-written activity, avatar image hosts, list limits, tighter image policy) and per-profile share previews (`api/share.ts`, a Vercel function using `@vercel/og` 0.11.1; 1.0.x crashes in Node on a missing `hb.wasm`). Migrations `017` and `018` are written and tested only by reading: on 16 Nov the rollback-only test and the apply of `017` were both declined at the connector's approval prompt, so run them yourself in the SQL editor (below). Checked before trying: the live site's list writes only send `user_id`, `title`, `description`, so `017` is safe while the old site is up.
-- **Live:** `5cc06b4` (Stages 1 to 6) is pushed and deploys from GitHub to https://shelved-one.vercel.app/.
-- **Database:** all migrations through `20240101000016` are applied. The likes and comments rules were tested first with `supabase/tests/20240101000015_dry_run.sql` (30 of 30 checks ok), then applied on 16 Nov and verified: row-level security on all three new tables, visitors can read counts but not notifications, only the edge function can call the rate counter.
-- **Edge functions:** `igdb-proxy` v13 (rate limited, 180 requests a minute per address) deployed 16 Nov and smoke-tested: game queries work, cache hits work, unknown endpoints are refused, the shared counter counts. Deployed through the Supabase connector; it needs `import_map_path: "deno.json"` set explicitly or the upload fails.
+- **Live:** everything through the security leftovers and per-profile share previews is pushed and deployed. Verified: the live bundle no longer writes activity from the browser and checks avatar hosts.
+- **Share previews broke on deploy** (`ERR_REQUIRE_ESM`: Vercel compiled `api/share.ts` to CommonJS, and `@vercel/og` is ES-module-only). Fixed by `api/package.json` with `"type": "module"`; tested locally as an unbundled ES module (HTML 200, image 200). **Needs a push.**
+- **Database:** migrations through `017` applied (017 run by the owner in the SQL editor on 16 Nov after the dry run passed 16/16; verified via connector: both activity triggers, all three new constraints, Steam import skips the feed). The dry run caught a bug first: Postgres regexes can't repeat more than 255 times, so the avatar URL length limit is a separate `char_length` check.
+- **`018` not applied yet**, but now safe: the live site no longer inserts activity.
+- **Supabase connector:** reads work, but `execute_sql` and `apply_migration` are declined in the 16 Nov session even after the owner allowed them in Claude Code and on claude.ai. Expect a fresh session to pick up the claude.ai setting.
+- **Edge functions:** `igdb-proxy` v13 (rate limited, 180 requests a minute per address), deployed 16 Nov. Deploys through the connector need `import_map_path: "deno.json"`.
 
 ## Waiting on you, in this order
 
-The security fixes have to go out in this order, because the live site still writes activity rows from the browser:
-
-1. **Test:** run `supabase/tests/20240101000017_dry_run.sql` in the Supabase SQL editor. It must end in `DRY RUN, ROLLED BACK` with only `ok:` entries.
-2. **Apply `20240101000017_server_written_activity.sql`.** Safe with the current live site: the database starts writing activity itself (old browser writes just duplicate, and the feed already collapses repeats), avatar links are limited to known image hosts, and lists get length limits.
-3. **Push** (`git push origin main`). The new site stops writing activity from the browser, checks avatar links before saving, and adds share previews.
-4. **After Vercel shows the deploy live, apply `20240101000018_activity_server_only.sql`.** Applying it before the new site is live breaks logging games on the old one.
-5. **Check share previews:** paste a profile link into Discord, WhatsApp or X; it should show that person's name, stats and favourite covers. Or run `curl -A "Discordbot" https://shelved-one.vercel.app/profile/<id>`, which should return a short page whose `og:image` points at `/api/share?...&image=1`.
-6. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
-7. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
-8. **Affiliates** (set in Vercel > Project > Settings > Environment Variables; these are build-time values, so they take effect on the next deploy):
-   - **Amazon (approved, Amazon UAE):** `VITE_AMAZON_TAG` = `shelved0d-21`, `VITE_AMAZON_DOMAIN` = `amazon.ae`. **Set in Vercel (Production only) on 16 Nov**; live from the next deploy.
+1. **Apply `20240101000018_activity_server_only.sql`** (safe now; removes the browser's right to write activity).
+2. **Push** the share-preview fix (`git push origin main`).
+3. **Check share previews:** paste a profile link into Discord, WhatsApp or X; it should show that person's name, stats and favourite covers. Or run `curl -A "Discordbot" https://shelved-one.vercel.app/profile/<id>`, which should return a short page whose `og:image` points at `/api/share?...&image=1`.
+4. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
+5. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
+6. **Affiliates** (set in Vercel > Project > Settings > Environment Variables; these are build-time values, so they take effect on the next deploy):
+   - **Amazon (approved, Amazon UAE):** `VITE_AMAZON_TAG` = `shelved0d-21`, `VITE_AMAZON_DOMAIN` = `amazon.ae`. **Set in Vercel (Production only) on 16 Nov** and included in the 16 Nov deploy.
    - **Fanatical (applied 16 Nov via Awin; "Fanatical Global" shows under Pending as of 16 Nov; completing the Awin profile helps approval):** Awin publisher ID `3157488`, Fanatical's Awin merchant ID `118821`. You log in to Awin (ui.awin.com), not Fanatical: Advertisers > My Programmes shows Fanatical under Joined once approved. Then set `VITE_AFFILIATE_FANATICAL_TEMPLATE` = `https://www.awin1.com/cread.php?awinmid=118821&awinaffid=3157488&ued={url}`. Don't set it before approval: links for a programme you haven't joined don't earn.
    - **Humble:** skipped; the owner believes the partner programme is discontinued. The code still supports `VITE_AFFILIATE_HUMBLE_TEMPLATE` if it comes back.
 

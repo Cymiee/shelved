@@ -1,29 +1,21 @@
 # Shelved: where things stand and what's next
 
-Last updated: 14 November 2026.
+Last updated: 16 November 2026.
 
 Goal: a full-fledged site that is fun to use, secure, and can earn a little money.
 
-## State (checked 14 Nov)
+## State (checked 16 Nov)
 
-- **Live:** commit `fd5b877` at https://shelved-one.vercel.app/.
-- **Committed locally, not pushed:** `5cc06b4` (Stages 1 to 6, including likes, comments and notifications). Pushing failed from Claude's environment: `git@github.com: Permission denied (publickey)`. Run `git push origin main` from a machine with GitHub access. Vercel deploys on push.
-- **Database:** the security migration (`...014`) is applied. The two new migrations are **not**:
-  - `20240101000015_review_likes_comments.sql`: likes, comments, notification markers and their functions.
-  - `20240101000016_igdb_rate_limit.sql`: the shared rate-limit counter for the game-data proxy.
-- **Edge functions:** `igdb-proxy` v12 is live without rate limiting; the rate-limited version is in the repo only.
-
-Until migration 015 is applied, the like and comment buttons simply don't appear (the cards hide them when counts can't load), and the notification badge counts friend requests only. Nothing breaks.
+- **Live:** `5cc06b4` (Stages 1 to 6) is pushed and deploys from GitHub to https://shelved-one.vercel.app/.
+- **Database:** all migrations through `20240101000016` are applied. The likes and comments rules were tested first with `supabase/tests/20240101000015_dry_run.sql` (30 of 30 checks ok), then applied on 16 Nov and verified: row-level security on all three new tables, visitors can read counts but not notifications, only the edge function can call the rate counter.
+- **Edge functions:** `igdb-proxy` v12 is live without rate limiting. The rate-limited version is in the repo and needs deploying (step 1 below).
 
 ## Waiting on you, in this order
 
-1. **Push:** `git push origin main`.
-2. **Test the new migrations:** paste `supabase/tests/20240101000015_dry_run.sql` into the Supabase SQL editor and run it. It must end in an error starting `DRY RUN, ROLLED BACK` with only `ok:` entries (30 checks covering who can like, comment, delete and see notifications). Any `FAIL:` means stop. Running it through Claude was declined at the approval prompt twice, so it has never run.
-3. **Apply:** run `supabase/migrations/20240101000015_review_likes_comments.sql`, then `...016_igdb_rate_limit.sql`, in the SQL editor.
-4. **Deploy the proxy (after step 3):** `supabase functions deploy igdb-proxy`.
-5. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
-6. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
-7. **Affiliates:** finish Amazon Associates (Store ID, "Content or Niche Website"), then set `VITE_AMAZON_TAG` and `VITE_AMAZON_DOMAIN` in Vercel and redeploy. Fanatical (Awin) and Humble (Impact) as described below.
+1. **Deploy the proxy:** `supabase functions deploy igdb-proxy`.
+2. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
+3. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
+4. **Affiliates:** finish Amazon Associates (Store ID, "Content or Niche Website"), then set `VITE_AMAZON_TAG` and `VITE_AMAZON_DOMAIN` in Vercel and redeploy. Fanatical (Awin) and Humble (Impact) as described below.
 
 ### Affiliate values for Vercel
 
@@ -61,6 +53,6 @@ Not tested with a real signed-in account yet: anything that writes (settings sav
 - Pages that need a login are split into a container (`pages/X.tsx`) and a view (`components/...`). To check a view without signing in, render it from a temporary route with sample data, then delete the route.
 - Phone layouts: headless Chrome's window can't go below about 500px. A small driver script that sets the viewport through Chrome's debugging protocol gives a true 375px view and reports horizontal overflow.
 - Run: `npm run dev`, `npm run typecheck`, `npm test`, `npm run build --workspace=web`.
-- Database migrations: the owner runs them in the Supabase SQL editor. Don't use `supabase db push`; local filenames use placeholder dates that don't match the remote history.
+- Database migrations: write a rollback-only dry-run script first (see `supabase/tests/`), have it run in the SQL editor, then apply. Claude can apply through the Supabase connector when the owner asks. Don't use `supabase db push`; local filenames use placeholder dates that don't match the remote history.
 - `ErrorBoundary` is the one class component; React has no hook equivalent.
 - Only `App.tsx` and `SettingsPage.tsx` may call `supabase.auth` directly (CLAUDE.md); settings sections get auth actions passed in as props.

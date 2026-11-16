@@ -106,7 +106,11 @@ alter table public.users
   add constraint users_avatar_url_host check (
     avatar_url is null
     or avatar_url ~ '^preset:[a-z0-9_-]{1,40}$'
-    or avatar_url ~ '^https://(i\.imgur\.com|avatars\.githubusercontent\.com|cdn\.discordapp\.com|avatars\.steamstatic\.com|secure\.gravatar\.com|lh3\.googleusercontent\.com|pbs\.twimg\.com)/[^\s]{1,1900}$'
+    or (
+      -- Postgres regexes can't repeat more than 255 times, so the length limit is separate.
+      avatar_url ~ '^https://(i\.imgur\.com|avatars\.githubusercontent\.com|cdn\.discordapp\.com|avatars\.steamstatic\.com|secure\.gravatar\.com|lh3\.googleusercontent\.com|pbs\.twimg\.com)/[^\s]+$'
+      and char_length(avatar_url) <= 2000
+    )
   );
 alter table public.lists
   add constraint lists_title_length check (char_length(btrim(title)) between 1 and 100),

@@ -22,10 +22,10 @@ The security fixes have to go out in this order, because the live site still wri
 5. **Check share previews:** paste a profile link into Discord, WhatsApp or X; it should show that person's name, stats and favourite covers. Or run `curl -A "Discordbot" https://shelved-one.vercel.app/profile/<id>`, which should return a short page whose `og:image` points at `/api/share?...&image=1`.
 6. **Check on the live site, signed in with two accounts:** like and unlike, comment, delete a comment, the bell count and the notifications page.
 7. **Leaked-password protection** needs the Supabase Pro plan (Authentication > Providers > Email).
-8. **Affiliates:**
-   - Amazon: done. Set `VITE_AMAZON_TAG` (your Store ID, ending in `-20`/`-21`) and `VITE_AMAZON_DOMAIN` (the store you joined, e.g. `amazon.in`) in Vercel, then redeploy.
-   - Fanatical: sign up through Awin (fanatical.com/en/affiliates > Join our programme). Step 1 needs your legal name, tax residency, email and a password. Once approved, set `VITE_AFFILIATE_FANATICAL_TEMPLATE`.
-   - Humble: humblebundle.com/partner, which hands over to Impact. Claude's browser extension can't open humblebundle.com (not on its allowed list). Once approved, set `VITE_AFFILIATE_HUMBLE_TEMPLATE`.
+8. **Affiliates** (set in Vercel > Project > Settings > Environment Variables; these are build-time values, so they take effect on the next deploy):
+   - **Amazon (approved, Amazon UAE):** `VITE_AMAZON_TAG` = `shelved0d-21`, `VITE_AMAZON_DOMAIN` = `amazon.ae`. Not set in Vercel yet.
+   - **Fanatical (applied 16 Nov via Awin, waiting for approval):** Awin publisher ID `3157488`, Fanatical's Awin merchant ID `118821`. Once Awin shows the programme as joined, set `VITE_AFFILIATE_FANATICAL_TEMPLATE` = `https://www.awin1.com/cread.php?awinmid=118821&awinaffid=3157488&ued={url}`. Don't set it before approval: links for a programme you haven't joined don't earn.
+   - **Humble:** skipped; the owner believes the partner programme is discontinued. The code still supports `VITE_AFFILIATE_HUMBLE_TEMPLATE` if it comes back.
 
 ### Affiliate values for Vercel
 
